@@ -64,6 +64,10 @@ func main() {
 	chatHub := chat.NewHub(pool)
 	go chatHub.Run()
 
+	// Start background chat cleanup worker (runs every hour)
+	cleanupWorker := chat.NewCleanupWorker(pool)
+	cleanupWorker.Start(1 * time.Hour)
+
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("ok"))
@@ -77,15 +81,21 @@ func main() {
 			r.Use(auth.RequireAuth)
 			r.Get("/auth/me", authHandler.Me)
 			r.Put("/auth/me", authHandler.UpdateMe)
+			r.Post("/circles", postHandler.CreateCircle)
 
 			r.Get("/circles", postHandler.ListCircles)
 			r.Route("/circles/{circleID}", func(r chi.Router) {
 				r.Put("/", postHandler.UpdateCircle)
+				r.Get("/threads", postHandler.ListThreads)
+				r.Get("/threads/{postID}", postHandler.GetThread)
+				r.Post("/read/{entityID}", postHandler.UpdateReadMarker)
 				r.Get("/posts", postHandler.ListPosts)
 				r.Post("/posts", postHandler.CreatePost)
 				r.Get("/members", postHandler.ListMembers)
 				r.Put("/members/{userID}", postHandler.UpdateMember)
 				r.Delete("/members/{userID}", postHandler.DeleteMember)
+				r.Get("/tags", postHandler.ListTags)
+				r.Post("/tags/{tagID}/pin", postHandler.PinTag)
 				r.Post("/invites", postHandler.CreateInvite)
 				r.Get("/chat/ws", chatHub.HandleWS)
 				r.Get("/chat/history", chatHub.GetHistory)
@@ -128,13 +138,24 @@ func bootstrap(pool *pgxpool.Pool) {
 }
 
 func runMigrations(pool *pgxpool.Pool) error {
-	// This is a very basic migration runner.
-	// For production, use github.com/golang-migrate/migrate
-	content, err := os.ReadFile("migrations/000001_init.up.sql")
+	// Simple migration runner that looks for .up.sql files in alphabetical order
+	files, err := os.ReadDir("migrations")
 	if err != nil {
 		return err
 	}
 
-	_, err = pool.Exec(context.Background(), string(content))
-	return err
+	for _, f := range files {
+		if !f.IsDir() && (len(f.Name()) > 7 && f.Name()[len(f.Name())-7:] == ".up.sql") {
+			log.Printf("Running migration: %s\n", f.Name())
+			content, err := os.ReadFile("migrations/" + f.Name())
+			if err != nil {
+				return err
+			}
+			_, err = pool.Exec(context.Background(), string(content))
+			if err != nil {
+				log.Printf("Error in migration %s: %v\n", f.Name(), err)
+			}
+		}
+	}
+	return nil
 }

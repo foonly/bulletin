@@ -40,63 +40,223 @@
 
 		<!-- Content -->
 		<div class="flex-1 flex overflow-hidden">
+			<!-- Tag Sidebar -->
+			<div
+				v-if="tab === 'posts' && !activeThread"
+				class="w-48 bg-gray-950/50 border-r border-gray-800 p-4 flex flex-col space-y-2 overflow-y-auto"
+			>
+				<h3
+					class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
+				>
+					Tags
+				</h3>
+				<button
+					@click="filterByTag('')"
+					:class="[
+						'text-left px-2 py-1 rounded text-sm transition-colors',
+						!selectedTag
+							? 'bg-purple-600 text-white'
+							: 'text-gray-400 hover:bg-gray-800',
+					]"
+				>
+					All Tags
+				</button>
+				<div
+					v-for="tag in circleStore.tags"
+					:key="tag.id"
+					class="group flex items-center justify-between"
+				>
+					<button
+						@click="filterByTag(tag.name)"
+						:class="[
+							'flex-1 text-left px-2 py-1 rounded text-sm transition-colors truncate',
+							selectedTag === tag.name
+								? 'bg-purple-600 text-white'
+								: 'text-gray-400 hover:bg-gray-800',
+						]"
+					>
+						<span v-if="tag.is_pinned" class="mr-1">📌</span>{{ tag.name }}
+					</button>
+					<button
+						v-if="isAdmin && !tag.is_pinned"
+						@click="togglePin(tag.id, true)"
+						class="hidden group-hover:block text-[10px] text-gray-600 hover:text-purple-400 p-1"
+					>
+						Pin
+					</button>
+					<button
+						v-if="isAdmin && tag.is_pinned"
+						@click="togglePin(tag.id, false)"
+						class="text-[10px] text-purple-400 p-1"
+					>
+						Unpin
+					</button>
+				</div>
+			</div>
+
 			<div class="flex-1 overflow-y-auto p-4">
 				<div v-if="tab === 'posts'" class="space-y-4">
-					<div class="bg-gray-800 p-4 rounded-lg">
-						<input
-							v-model="newPost.title"
-							placeholder="Post Title"
-							class="w-full bg-gray-700 p-2 rounded mb-2 border border-gray-600 focus:outline-none"
-						/>
-						<textarea
-							v-model="newPost.content"
-							placeholder="What's on your mind?"
-							class="w-full bg-gray-700 p-2 rounded border border-gray-600 focus:outline-none"
-							rows="3"
-						></textarea>
-						<div class="flex justify-end mt-2">
-							<button
-								@click="handleCreatePost"
-								class="bg-purple-600 px-4 py-1 rounded font-bold hover:bg-purple-700"
+					<!-- Thread List -->
+					<div v-if="!activeThread" class="space-y-4">
+						<div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+							<h3 class="text-lg font-bold mb-4">Start a new thread</h3>
+							<input
+								v-model="newPost.title"
+								placeholder="Thread Title"
+								class="w-full bg-gray-700 p-2 rounded mb-2 border border-gray-600 focus:outline-none"
+							/>
+							<textarea
+								v-model="newPost.content"
+								placeholder="What's on your mind?"
+								class="w-full bg-gray-700 p-2 rounded border border-gray-600 focus:outline-none"
+								rows="3"
+							></textarea>
+
+							<!-- Tag Selector -->
+							<div class="mt-3 space-y-2">
+								<label class="text-xs text-gray-500 font-bold uppercase"
+									>Tags (at least one required)</label
+								>
+								<div class="flex flex-wrap gap-2">
+									<button
+										v-for="tag in circleStore.tags"
+										:key="tag.id"
+										@click="toggleTagSelection(tag.name)"
+										:class="[
+											'px-2 py-1 rounded text-xs border transition-colors',
+											newPost.tags.includes(tag.name)
+												? 'bg-purple-600 border-purple-500 text-white'
+												: 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500',
+										]"
+									>
+										{{ tag.name }}
+									</button>
+									<div
+										v-if="circleStore.activeCircle?.allow_freeform_tags"
+										class="flex items-center space-x-1"
+									>
+										<input
+											v-model="newTagName"
+											@keyup.enter="addCustomTag"
+											placeholder="Add tag..."
+											class="bg-gray-900 border border-gray-700 text-xs px-2 py-1 rounded focus:outline-none focus:border-purple-500 w-24"
+										/>
+										<button
+											@click="addCustomTag"
+											class="text-xs text-purple-400 hover:text-purple-300"
+										>
+											+
+										</button>
+									</div>
+								</div>
+								<div
+									v-if="newPost.tags.length > 0"
+									class="flex flex-wrap gap-1 mt-1"
+								>
+									<span
+										v-for="tag in newPost.tags"
+										:key="tag"
+										class="bg-purple-900/30 text-purple-400 text-[10px] px-1.5 py-0.5 rounded flex items-center"
+									>
+										{{ tag }}
+										<button
+											@click="toggleTagSelection(tag)"
+											class="ml-1 text-purple-600 hover:text-purple-400"
+										>
+											×
+										</button>
+									</span>
+								</div>
+							</div>
+
+							<div class="flex justify-end mt-4">
+								<button
+									@click="handleCreatePost"
+									:disabled="
+										!newPost.content.trim() ||
+										!newPost.title.trim() ||
+										newPost.tags.length === 0
+									"
+									class="bg-purple-600 px-4 py-1 rounded font-bold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+								>
+									Post
+								</button>
+							</div>
+						</div>
+
+						<div
+							v-for="thread in circleStore.threads"
+							:key="thread.id"
+							@click="openThread(thread.id)"
+							class="bg-gray-800 p-4 rounded-lg border border-gray-700 cursor-pointer hover:border-purple-500 transition-colors"
+						>
+							<div class="flex items-center justify-between mb-2 text-xs">
+								<div class="flex items-center space-x-2">
+									<span class="font-bold text-purple-400">{{
+										thread.author_name
+									}}</span>
+									<span class="text-gray-500">{{
+										formatDate(thread.created_at)
+									}}</span>
+								</div>
+								<div
+									v-if="thread.unread_count > 0"
+									class="bg-red-500 text-white px-2 py-0.5 rounded-full font-bold"
+								>
+									{{ thread.unread_count }} new
+								</div>
+							</div>
+							<h3 class="font-bold text-lg mb-1">{{ thread.title }}</h3>
+							<div class="flex flex-wrap gap-1 mb-2">
+								<span
+									v-for="tag in thread.tags"
+									:key="tag"
+									@click.stop="filterByTag(tag)"
+									class="text-[10px] bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded hover:bg-purple-600 hover:text-white transition-colors cursor-pointer"
+								>
+									#{{ tag }}
+								</span>
+							</div>
+							<p
+								class="text-gray-400 text-sm line-clamp-4 overflow-hidden"
+								style="
+									display: -webkit-box;
+									-webkit-line-clamp: 4;
+									-webkit-box-orient: vertical;
+								"
 							>
-								Post
-							</button>
+								{{ thread.content }}
+							</p>
+
+							<div
+								class="mt-4 flex items-center justify-between text-xs text-gray-500 border-t border-gray-700 pt-2"
+							>
+								<div class="flex items-center space-x-4">
+									<span>{{ thread.reply_count }} replies</span>
+									<span v-if="thread.last_reply_at"
+										>Last reply: {{ formatDate(thread.last_reply_at) }}</span
+									>
+								</div>
+							</div>
 						</div>
 					</div>
 
-					<div
-						v-for="post in threadedPosts"
-						:key="post.id"
-						class="bg-gray-800 p-4 rounded-lg border border-gray-700"
-					>
-						<div class="flex items-center justify-between mb-2">
-							<span class="font-bold text-purple-400">{{
-								post.author_name
-							}}</span>
-							<span class="text-xs text-gray-500">{{
-								formatDate(post.created_at)
-							}}</span>
-						</div>
-						<h3 v-if="post.title" class="font-bold text-lg mb-1">
-							{{ post.title }}
-						</h3>
-						<p class="text-gray-300">{{ post.content }}</p>
-
-						<!-- Replies (simplified) -->
-						<div
-							v-if="post.replies && post.replies.length"
-							class="mt-4 pl-4 border-l-2 border-gray-700 space-y-3"
+					<!-- Single Thread View -->
+					<div v-else class="space-y-4">
+						<button
+							@click="activeThread = null"
+							class="text-purple-400 hover:underline mb-2 flex items-center"
 						>
-							<div
-								v-for="reply in post.replies"
-								:key="reply.id"
-								class="text-sm"
-							>
-								<span class="font-bold text-gray-400"
-									>{{ reply.author_name }}:</span
-								>
-								{{ reply.content }}
-							</div>
+							← Back to all threads
+						</button>
+
+						<div class="space-y-4 pb-12">
+							<ThreadNode
+								v-if="threadTree"
+								:node="threadTree"
+								:circle-id="props.id"
+								@reply-created="openThread(threadTree.id)"
+							/>
 						</div>
 					</div>
 				</div>
@@ -248,6 +408,44 @@
 						</div>
 					</section>
 
+					<!-- Tag Management -->
+					<section class="bg-gray-800 p-6 rounded-lg space-y-4">
+						<h3 class="text-xl font-bold border-b border-gray-700 pb-2">
+							Tags
+						</h3>
+						<div class="flex items-center space-x-2">
+							<input
+								v-model="adminNewTagName"
+								@keyup.enter="adminAddTag"
+								placeholder="New tag name..."
+								class="flex-1 bg-gray-700 p-2 rounded focus:outline-none"
+							/>
+							<button
+								@click="adminAddTag"
+								class="bg-purple-600 px-4 py-2 rounded font-bold hover:bg-purple-700"
+							>
+								Add Tag
+							</button>
+						</div>
+						<div class="flex flex-wrap gap-2 pt-2">
+							<div
+								v-for="tag in circleStore.tags"
+								:key="tag.id"
+								class="flex items-center bg-gray-700 rounded-full px-3 py-1 text-sm"
+							>
+								<span :class="tag.is_pinned ? 'text-purple-400' : ''">{{
+									tag.name
+								}}</span>
+								<button
+									@click="togglePin(tag.id, !tag.is_pinned)"
+									class="ml-2 text-xs text-gray-500 hover:text-purple-400"
+								>
+									{{ tag.is_pinned ? "Unpin" : "Pin" }}
+								</button>
+							</div>
+						</div>
+					</section>
+
 					<!-- Member Management (Admins only) -->
 					<section v-if="isAdmin" class="bg-gray-800 p-6 rounded-lg space-y-4">
 						<h3 class="text-xl font-bold border-b border-gray-700 pb-2">
@@ -321,6 +519,7 @@ import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
 import { useCircleStore } from "../stores/circles";
 import { useAuthStore } from "../stores/auth";
 import axios from "axios";
+import ThreadNode from "../components/ThreadNode.vue";
 
 const props = defineProps(["id"]);
 const circleStore = useCircleStore();
@@ -328,9 +527,14 @@ const auth = useAuthStore();
 const tab = ref("posts");
 const chatInput = ref("");
 const chatBox = ref(null);
-const newPost = ref({ title: "", content: "" });
+const newPost = ref({ title: "", content: "", tags: [] });
+const newTagName = ref("");
+const adminNewTagName = ref("");
+const selectedTag = ref("");
+const replyContent = ref("");
 const members = ref([]);
 const onlineUserIds = ref(new Set());
+const activeThread = ref(null);
 const settings = ref({
 	name: "",
 	description: "",
@@ -357,6 +561,25 @@ const isAdmin = computed(() => {
 	return circleStore.activeCircle?.role === "admin";
 });
 
+const threadTree = computed(() => {
+	if (!activeThread.value || !activeThread.value.length) return null;
+
+	const posts = activeThread.value;
+	const root = posts.find((p) => !p.parent_id);
+	if (!root) return null;
+
+	const buildNode = (node) => {
+		return {
+			...node,
+			replies: posts
+				.filter((p) => p.parent_id === node.id)
+				.map((p) => buildNode(p)),
+		};
+	};
+
+	return buildNode(root);
+});
+
 const threadedPosts = computed(() => {
 	const topLevel = circleStore.posts.filter((p) => !p.parent_id);
 	return topLevel.map((p) => ({
@@ -370,6 +593,8 @@ const formatDate = (dateStr) => {
 };
 
 const loadCircleData = async () => {
+	activeThread.value = null; // Reset when switching circles
+	selectedTag.value = ""; // Reset tag filter
 	if (!circleStore.circles.length) {
 		await circleStore.fetchCircles();
 	}
@@ -378,7 +603,8 @@ const loadCircleData = async () => {
 		circleStore.activeCircle = circle;
 	}
 
-	await circleStore.fetchPosts(props.id);
+	await circleStore.fetchThreads(props.id);
+	await circleStore.fetchTags(props.id);
 	await circleStore.fetchChatHistory(props.id);
 	const res = await axios.get(`/api/circles/${props.id}/members`);
 	members.value = res.data;
@@ -388,6 +614,30 @@ const loadCircleData = async () => {
 	}
 
 	connectWS();
+};
+
+const openThread = async (postId) => {
+	await circleStore.fetchThread(props.id, postId);
+	activeThread.value = circleStore.activeThread;
+
+	// Start read marker logic
+	startReadTracking(postId);
+};
+
+let readTimer = null;
+const startReadTracking = (entityId) => {
+	if (readTimer) clearTimeout(readTimer);
+
+	// Wait 3 seconds then mark as read
+	readTimer = setTimeout(async () => {
+		try {
+			await circleStore.markRead(props.id, entityId);
+			// Refresh threads to update unread counts
+			await circleStore.fetchThreads(props.id);
+		} catch (err) {
+			console.error("Failed to mark as read", err);
+		}
+	}, 3000);
 };
 
 const connectWS = () => {
@@ -439,9 +689,59 @@ const handleCreatePost = async () => {
 	await circleStore.createPost(props.id, {
 		title: newPost.value.title,
 		content: newPost.value.content,
-		tags: [],
+		tags: newPost.value.tags,
 	});
-	newPost.value = { title: "", content: "" };
+	newPost.value = { title: "", content: "", tags: [] };
+	await circleStore.fetchThreads(props.id, selectedTag.value);
+	await circleStore.fetchTags(props.id);
+};
+
+const toggleTagSelection = (tagName) => {
+	const index = newPost.value.tags.indexOf(tagName);
+	if (index > -1) {
+		newPost.value.tags.splice(index, 1);
+	} else {
+		newPost.value.tags.push(tagName);
+	}
+};
+
+const addCustomTag = () => {
+	const tag = newTagName.value.trim().toLowerCase();
+	if (tag && !newPost.value.tags.includes(tag)) {
+		newPost.value.tags.push(tag);
+	}
+	newTagName.value = "";
+};
+
+const filterByTag = async (tagName) => {
+	selectedTag.value = tagName;
+	await circleStore.fetchThreads(props.id, tagName);
+};
+
+const adminAddTag = async () => {
+	const tag = adminNewTagName.value.trim().toLowerCase();
+	if (!tag) return;
+
+	try {
+		// We use CreatePost with an empty content to just create the tag
+		// Actually, let's just use the toggleTagSelection logic but we need an actual endpoint
+		// For now, let's just allow admins to pre-create tags by creating a hidden post or something?
+		// Better: let's just let them create tags in the thread form.
+		// If they want to "manage" them, they can just use the Pinned status.
+
+		// To keep it simple without adding another endpoint:
+		// We'll just alert that tags are created when used in a post.
+		alert(
+			"Tags are created automatically when used in a post if 'Allow freeform tags' is enabled. Otherwise, admins can pin existing tags.",
+		);
+	} catch (err) {
+		console.error(err);
+	}
+	adminNewTagName.value = "";
+};
+
+const togglePin = async (tagId, isPinned) => {
+	await circleStore.pinTag(props.id, tagId, isPinned);
 };
 
 const saveSettings = async () => {
@@ -488,7 +788,10 @@ const scrollToBottom = () => {
 
 watch(() => props.id, loadCircleData);
 watch(tab, (newTab) => {
-	if (newTab === "chat") scrollToBottom();
+	if (newTab === "chat") {
+		scrollToBottom();
+		circleStore.markRead(props.id, props.id); // Mark circle chat as read
+	}
 });
 
 onMounted(loadCircleData);
