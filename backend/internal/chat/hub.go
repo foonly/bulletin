@@ -21,13 +21,14 @@ var upgrader = websocket.Upgrader{
 }
 
 type Message struct {
-	ID        uuid.UUID `json:"id"`
-	CircleID  uuid.UUID `json:"circle_id"`
-	UserID    uuid.UUID `json:"user_id"`
-	Username  string    `json:"username"`
-	Content   string    `json:"content"`
-	Type      string    `json:"type"` // "chat", "join", "leave"
-	CreatedAt time.Time `json:"created_at"`
+	ID        uuid.UUID   `json:"id,omitempty"`
+	CircleID  uuid.UUID   `json:"circle_id,omitempty"`
+	UserID    uuid.UUID   `json:"user_id,omitempty"`
+	Username  string      `json:"username,omitempty"`
+	Content   string      `json:"content,omitempty"`
+	Type      string      `json:"type"` // "chat", "join", "leave", "presence"
+	OnlineIDs []uuid.UUID `json:"online_ids,omitempty"`
+	CreatedAt time.Time   `json:"created_at,omitempty"`
 }
 
 type Client struct {
@@ -79,21 +80,34 @@ func (h *Hub) Run() {
 			}
 			h.mu.Unlock()
 
-			// Send the list of online users to the new client
-			userList, _ := json.Marshal(map[string]interface{}{
-				"type": "presence",
-				"ids":  onlineIDs,
-			})
-			client.conn.WriteMessage(websocket.TextMessage, userList)
+			// Send the list of online users to the new client via the send channel
+			select {
+			case client.send <- Message{
+				Type:      "presence",
+				OnlineIDs: onlineIDs,
+			}:
+			default:
+			}
 
 			// Broadcast join
-			h.broadcast <- Message{
+			msg := Message{
 				CircleID:  client.circleID,
 				UserID:    client.userID,
 				Username:  client.username,
 				Type:      "join",
 				CreatedAt: time.Now(),
 			}
+
+			h.mu.Lock()
+			for c := range h.circles[client.circleID] {
+				select {
+				case c.send <- msg:
+				default:
+					close(c.send)
+					delete(h.circles[client.circleID], c)
+				}
+			}
+			h.mu.Unlock()
 
 		case client := <-h.unregister:
 			h.mu.Lock()
@@ -106,19 +120,29 @@ func (h *Hub) Run() {
 					}
 
 					// Broadcast leave
-					h.broadcast <- Message{
+					msg := Message{
 						CircleID:  client.circleID,
 						UserID:    client.userID,
 						Username:  client.username,
 						Type:      "leave",
 						CreatedAt: time.Now(),
 					}
+					for c := range clients {
+						select {
+						case c.send <- msg:
+						default:
+							close(c.send)
+							delete(clients, c)
+						}
+					}
 				}
 			}
 			h.mu.Unlock()
 		case message := <-h.broadcast:
 			h.mu.Lock()
-			if clients, ok := h.circles[message.CircleID]; ok {
+			clients, ok := h.circles[message.CircleID]
+			log.Printf("Broadcasting message type %s to circle %s (%d clients)\n", message.Type, message.CircleID, len(clients))
+			if ok {
 				for client := range clients {
 					select {
 					case client.send <- message:
@@ -142,6 +166,8 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := r.Context().Value("user_id").(uuid.UUID)
+
+	log.Printf("User %s connecting to circle %s via WS\n", userID, circleID)
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {

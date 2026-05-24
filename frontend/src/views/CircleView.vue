@@ -393,25 +393,38 @@ const loadCircleData = async () => {
 const connectWS = () => {
 	if (ws) ws.close();
 	const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-	const host =
-		window.location.host === "localhost:5173"
-			? "localhost:8080"
-			: window.location.host;
-	ws = new WebSocket(`${protocol}//${host}/api/circles/${props.id}/chat/ws`);
+	ws = new WebSocket(
+		`${protocol}//${window.location.host}/api/circles/${props.id}/chat/ws`,
+	);
 
 	ws.onmessage = (event) => {
+		console.log("WebSocket message received:", event.data);
 		const msg = JSON.parse(event.data);
 
 		if (msg.type === "presence") {
-			onlineUserIds.value = new Set(msg.ids);
+			onlineUserIds.value = new Set(msg.online_ids);
 		} else if (msg.type === "join") {
 			onlineUserIds.value.add(msg.user_id);
+			onlineUserIds.value = new Set(onlineUserIds.value);
 		} else if (msg.type === "leave") {
 			onlineUserIds.value.delete(msg.user_id);
+			onlineUserIds.value = new Set(onlineUserIds.value);
 		} else {
 			circleStore.addChatMessage(msg);
 			scrollToBottom();
 		}
+	};
+
+	ws.onopen = () => {
+		console.log("WebSocket connected");
+	};
+
+	ws.onerror = (error) => {
+		console.error("WebSocket error:", error);
+	};
+
+	ws.onclose = () => {
+		console.log("WebSocket disconnected");
 	};
 };
 
