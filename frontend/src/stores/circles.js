@@ -9,12 +9,21 @@ export const useCircleStore = defineStore("circles", {
 		activeThread: null,
 		posts: [],
 		tags: [],
+		invites: [],
 		chatMessages: [],
 	}),
 	actions: {
 		async fetchCircles() {
 			const res = await axios.get("/api/circles");
 			this.circles = res.data;
+		},
+		async fetchInvites(circleId) {
+			const res = await axios.get(`/api/circles/${circleId}/invites`);
+			this.invites = res.data;
+		},
+		async deleteInvite(circleId, inviteId) {
+			await axios.delete(`/api/circles/${circleId}/invites/${inviteId}`);
+			await this.fetchInvites(circleId);
 		},
 		async createCircle(circleData) {
 			const res = await axios.post("/api/circles", circleData);
@@ -24,6 +33,10 @@ export const useCircleStore = defineStore("circles", {
 		async fetchTags(circleId) {
 			const res = await axios.get(`/api/circles/${circleId}/tags`);
 			this.tags = res.data;
+		},
+		async createTag(circleId, name) {
+			await axios.post(`/api/circles/${circleId}/tags`, { name });
+			await this.fetchTags(circleId);
 		},
 		async pinTag(circleId, tagId, isPinned) {
 			await axios.post(`/api/circles/${circleId}/tags/${tagId}/pin`, {
@@ -42,6 +55,11 @@ export const useCircleStore = defineStore("circles", {
 		async fetchThread(circleId, postId) {
 			const res = await axios.get(`/api/circles/${circleId}/threads/${postId}`);
 			this.activeThread = res.data;
+		},
+		async updatePost(circleId, postId, content) {
+			await axios.put(`/api/circles/${circleId}/threads/${postId}`, {
+				content,
+			});
 		},
 		async markRead(circleId, entityId) {
 			await axios.post(`/api/circles/${circleId}/read/${entityId}`);

@@ -2,15 +2,16 @@ package models
 
 import (
 	"time"
+
 	"github.com/google/uuid"
 )
 
 type User struct {
-	ID           uuid.UUID `json:"id"`
-	Username     string    `json:"username"`
-	PasswordHash string    `json:"-"`
+	ID           uuid.UUID  `json:"id"`
+	Username     string     `json:"username"`
+	PasswordHash string     `json:"-"`
 	InvitedByID  *uuid.UUID `json:"invited_by_id"`
-	CreatedAt    time.Time `json:"created_at"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
 type Session struct {
@@ -29,13 +30,13 @@ const (
 )
 
 type Circle struct {
-	ID                uuid.UUID `json:"id"`
-	Name              string    `json:"name"`
-	Description       string    `json:"description"`
-	OwnerID           uuid.UUID `json:"owner_id"`
-	AllowFreeformTags bool      `json:"allow_freeform_tags"`
-	InviteMinRole     CircleRole `json:"invite_min_role"`
-	ChatRetentionDays int       `json:"chat_retention_days"`
-	ChatRetentionCount int      `json:"chat_retention_count"`
-	CreatedAt         time.Time `json:"created_at"`
+	ID                 uuid.UUID  `json:"id"`
+	Name               string     `json:"name"`
+	Description        string     `json:"description"`
+	OwnerID            *uuid.UUID `json:"owner_id"`
+	AllowFreeformTags  bool       `json:"allow_freeform_tags"`
+	InviteMinRole      CircleRole `json:"invite_min_role"`
+	ChatRetentionDays  int        `json:"chat_retention_days"`
+	ChatRetentionCount int        `json:"chat_retention_count"`
+	CreatedAt          time.Time  `json:"created_at"`
 }

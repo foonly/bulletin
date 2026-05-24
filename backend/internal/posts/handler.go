@@ -2,8 +2,12 @@ package posts
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -76,12 +80,13 @@ func (h *Handler) ListCircles(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id").(uuid.UUID)
 
 	rows, err := h.DB.Query(r.Context(),
-		`SELECT c.id, c.name, c.description, c.owner_id, c.allow_freeform_tags,
+		`SELECT c.id, c.name, COALESCE(c.description, ''), c.owner_id, c.allow_freeform_tags,
 		        c.invite_min_role, c.chat_retention_days, c.chat_retention_count, c.created_at, cm.role
 		 FROM circles c
 		 JOIN circle_members cm ON c.id = cm.circle_id
 		 WHERE cm.user_id = $1`, userID)
 	if err != nil {
+		log.Printf("ListCircles query error: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -92,12 +97,13 @@ func (h *Handler) ListCircles(w http.ResponseWriter, r *http.Request) {
 		Role models.CircleRole `json:"role"`
 	}
 
-	var circles []circleWithRole
+	var circles []circleWithRole = []circleWithRole{}
 	for rows.Next() {
 		var c circleWithRole
 		err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.OwnerID, &c.AllowFreeformTags,
 			&c.InviteMinRole, &c.ChatRetentionDays, &c.ChatRetentionCount, &c.CreatedAt, &c.Role)
 		if err != nil {
+			log.Printf("ListCircles scan error: %v\n", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -251,6 +257,32 @@ func (h *Handler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func (h *Handler) MembershipMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		circleIDStr := chi.URLParam(r, "circleID")
+		circleID, err := uuid.Parse(circleIDStr)
+		if err != nil {
+			http.Error(w, "Invalid circle ID", http.StatusBadRequest)
+			return
+		}
+
+		userID := r.Context().Value("user_id").(uuid.UUID)
+		var exists bool
+		err = h.DB.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM circle_members WHERE circle_id = $1 AND user_id = $2)", circleID, userID).Scan(&exists)
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		if !exists {
+			http.Error(w, "Circle not found or access denied", http.StatusNotFound)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (h *Handler) checkRole(ctx context.Context, circleID, userID uuid.UUID, minRole models.CircleRole) (bool, error) {
 	var role models.CircleRole
 	err := h.DB.QueryRow(ctx, "SELECT role FROM circle_members WHERE circle_id = $1 AND user_id = $2", circleID, userID).Scan(&role)
@@ -282,6 +314,7 @@ func (h *Handler) ListMembers(w http.ResponseWriter, r *http.Request) {
 		`SELECT
 			u.id,
 			u.username,
+			cm.role,
 			cm.invited_by_id,
 			inv.username as inviter_username,
 			EXISTS(SELECT 1 FROM circle_members cm2 WHERE cm2.user_id = cm.invited_by_id AND cm2.circle_id IN (SELECT circle_id FROM circle_members WHERE user_id = $1)) as has_connection
@@ -291,25 +324,28 @@ func (h *Handler) ListMembers(w http.ResponseWriter, r *http.Request) {
 		 WHERE cm.circle_id = $2`, viewerID, circleID)
 
 	if err != nil {
+		log.Printf("ListMembers query error: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
 
 	type memberResponse struct {
-		ID        uuid.UUID `json:"id"`
-		Username  string    `json:"username"`
-		InvitedBy string    `json:"invited_by"`
+		ID        uuid.UUID         `json:"id"`
+		Username  string            `json:"username"`
+		Role      models.CircleRole `json:"role"`
+		InvitedBy string            `json:"invited_by"`
 	}
 
-	var members []memberResponse
+	var members []memberResponse = []memberResponse{}
 	for rows.Next() {
 		var m memberResponse
 		var invitedByID *uuid.UUID
 		var inviterUsername *string
 		var hasConnection bool
-		err := rows.Scan(&m.ID, &m.Username, &invitedByID, &inviterUsername, &hasConnection)
+		err := rows.Scan(&m.ID, &m.Username, &m.Role, &invitedByID, &inviterUsername, &hasConnection)
 		if err != nil {
+			log.Printf("ListMembers scan error: %v\n", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -334,8 +370,9 @@ type threadResponse struct {
 	Title       string     `json:"title"`
 	Content     string     `json:"content"`
 	CreatedAt   time.Time  `json:"created_at"`
-	ReplyCount  int        `json:"reply_count"`
-	UnreadCount int        `json:"unread_count"`
+	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
+	ReplyCount  int64      `json:"reply_count"`
+	UnreadCount int64      `json:"unread_count"`
 	LastReplyAt *time.Time `json:"last_reply_at"`
 	Tags        []string   `json:"tags"`
 }
@@ -349,40 +386,55 @@ func (h *Handler) ListThreads(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tagFilter := r.URL.Query().Get("tag")
-
 	userID := r.Context().Value("user_id").(uuid.UUID)
 
-	query := `SELECT
-			p.id, p.author_id, u.username, p.title, p.content, p.created_at,
-			(
-				WITH RECURSIVE descendants AS (
-					SELECT id FROM posts WHERE parent_id = p.id
-					UNION ALL
-					SELECT p2.id FROM posts p2 JOIN descendants d ON p2.parent_id = d.id
-				)
-				SELECT COUNT(*) FROM descendants
-			) as total_replies,
-			(
-				WITH RECURSIVE descendants AS (
-					SELECT id, created_at FROM posts WHERE parent_id = p.id
-					UNION ALL
-					SELECT p2.id, p2.created_at FROM posts p2 JOIN descendants d ON p2.parent_id = d.id
-				)
-				SELECT MAX(created_at) FROM descendants
-			) as last_reply_at,
-			(
-				WITH RECURSIVE descendants AS (
-					SELECT id, created_at FROM posts WHERE parent_id = p.id
-					UNION ALL
-					SELECT p2.id, p2.created_at FROM posts p2 JOIN descendants d ON p2.parent_id = d.id
-				)
-				SELECT COUNT(*) FROM descendants WHERE created_at > COALESCE(rm.last_read_at, '1970-01-01')
-			) as unread_count,
-			COALESCE((SELECT array_agg(t.name) FROM post_tags pt JOIN tags t ON pt.tag_id = t.id WHERE pt.post_id = p.id), '{}') as tags
-		 FROM posts p
-		 JOIN users u ON p.author_id = u.id
-		 LEFT JOIN read_markers rm ON rm.entity_id = p.id AND rm.user_id = $2
-		 WHERE p.circle_id = $1 AND p.parent_id IS NULL`
+	// Optimized query: One recursive CTE to find all descendants of all threads in the circle
+	query := `
+		WITH RECURSIVE descendants AS (
+			-- Find direct children of root posts in this circle
+			SELECT p.id, p.parent_id, p.id as root_id, p.created_at
+			FROM posts p
+			WHERE p.circle_id = $1 AND p.parent_id IS NULL
+
+			UNION ALL
+
+			-- Find their children recursively
+			SELECT p.id, p.parent_id, d.root_id, p.created_at
+			FROM posts p
+			JOIN descendants d ON p.parent_id = d.id
+		),
+		stats AS (
+			-- Aggregate stats per root post
+			SELECT
+				root_id,
+				COUNT(*) - 1 as total_replies, -- subtract 1 to exclude the root post itself
+				MAX(created_at) as last_reply_at
+			FROM descendants
+			GROUP BY root_id
+		),
+		unread AS (
+			-- Calculate unread counts per root post
+			SELECT
+				d.root_id,
+				COUNT(*) as count
+			FROM descendants d
+			LEFT JOIN read_markers rm ON rm.entity_id = d.root_id AND rm.user_id = $2
+			WHERE d.id != d.root_id -- only count replies
+			AND d.created_at > COALESCE(rm.last_read_at, '1970-01-01')
+			GROUP BY d.root_id
+		)
+		SELECT
+			p.id, p.author_id, u.username, COALESCE(p.title, ''), p.content, p.created_at, p.updated_at,
+			COALESCE(s.total_replies, 0) as total_replies,
+			s.last_reply_at,
+			COALESCE(un.count, 0) as unread_count,
+			COALESCE((SELECT string_agg(t.name, ',') FROM post_tags pt JOIN tags t ON pt.tag_id = t.id WHERE pt.post_id = p.id), '') as tags
+		FROM posts p
+		JOIN users u ON p.author_id = u.id
+		LEFT JOIN stats s ON p.id = s.root_id
+		LEFT JOIN unread un ON p.id = un.root_id
+		WHERE p.circle_id = $1 AND p.parent_id IS NULL
+	`
 
 	args := []interface{}{circleID, userID}
 
@@ -391,18 +443,11 @@ func (h *Handler) ListThreads(w http.ResponseWriter, r *http.Request) {
 		args = append(args, tagFilter)
 	}
 
-	query += ` ORDER BY COALESCE((
-				WITH RECURSIVE descendants AS (
-					SELECT id, created_at FROM posts WHERE parent_id = p.id
-					UNION ALL
-					SELECT p2.id, p2.created_at FROM posts p2 JOIN descendants d ON p2.parent_id = d.id
-				)
-				SELECT MAX(created_at) FROM descendants
-		 ), p.created_at) DESC`
+	query += ` ORDER BY COALESCE(s.last_reply_at, p.created_at) DESC`
 
 	rows, err := h.DB.Query(r.Context(), query, args...)
-
 	if err != nil {
+		log.Printf("ListThreads query error: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -411,10 +456,17 @@ func (h *Handler) ListThreads(w http.ResponseWriter, r *http.Request) {
 	var threads []threadResponse = []threadResponse{}
 	for rows.Next() {
 		var t threadResponse
-		err := rows.Scan(&t.ID, &t.AuthorID, &t.AuthorName, &t.Title, &t.Content, &t.CreatedAt, &t.ReplyCount, &t.LastReplyAt, &t.UnreadCount, &t.Tags)
+		var tagStr string
+		err := rows.Scan(&t.ID, &t.AuthorID, &t.AuthorName, &t.Title, &t.Content, &t.CreatedAt, &t.UpdatedAt, &t.ReplyCount, &t.LastReplyAt, &t.UnreadCount, &tagStr)
 		if err != nil {
+			log.Printf("ListThreads scan error: %v\n", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+		if tagStr != "" {
+			t.Tags = strings.Split(tagStr, ",")
+		} else {
+			t.Tags = []string{}
 		}
 		threads = append(threads, t)
 	}
@@ -430,18 +482,18 @@ func (h *Handler) GetThread(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.DB.Query(r.Context(),
 		`WITH RECURSIVE thread_tree AS (
 			-- Base case: the root post
-			SELECT id, author_id, parent_id, title, content, created_at, 0 as depth
+			SELECT id, author_id, parent_id, title, content, created_at, updated_at, 0 as depth
 			FROM posts
 			WHERE id = $1
 
 			UNION ALL
 
 			-- Recursive step: find all children
-			SELECT p.id, p.author_id, p.parent_id, p.title, p.content, p.created_at, tt.depth + 1
+			SELECT p.id, p.author_id, p.parent_id, p.title, p.content, p.created_at, p.updated_at, tt.depth + 1
 			FROM posts p
 			JOIN thread_tree tt ON p.parent_id = tt.id
 		)
-		SELECT tt.id, tt.author_id, u.username, tt.parent_id, COALESCE(tt.title, ''), tt.content, tt.created_at, tt.depth
+		SELECT tt.id, tt.author_id, u.username, tt.parent_id, COALESCE(tt.title, ''), tt.content, tt.created_at, tt.updated_at, tt.depth
 		FROM thread_tree tt
 		JOIN users u ON tt.author_id = u.id
 		ORDER BY tt.created_at ASC`, postID)
@@ -460,14 +512,16 @@ func (h *Handler) GetThread(w http.ResponseWriter, r *http.Request) {
 		Title      string     `json:"title,omitempty"`
 		Content    string     `json:"content"`
 		CreatedAt  time.Time  `json:"created_at"`
+		UpdatedAt  *time.Time `json:"updated_at,omitempty"`
 		Depth      int        `json:"depth"`
 	}
 
-	var allPosts []postNode
+	var allPosts []postNode = []postNode{}
 	for rows.Next() {
 		var p postNode
-		err := rows.Scan(&p.ID, &p.AuthorID, &p.AuthorName, &p.ParentID, &p.Title, &p.Content, &p.CreatedAt, &p.Depth)
+		err := rows.Scan(&p.ID, &p.AuthorID, &p.AuthorName, &p.ParentID, &p.Title, &p.Content, &p.CreatedAt, &p.UpdatedAt, &p.Depth)
 		if err != nil {
+			log.Printf("GetThread scan error: %v\n", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -505,6 +559,45 @@ func (h *Handler) UpdateReadMarker(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (h *Handler) UpdatePost(w http.ResponseWriter, r *http.Request) {
+	postIDStr := chi.URLParam(r, "postID")
+	postID, _ := uuid.Parse(postIDStr)
+
+	userID := r.Context().Value("user_id").(uuid.UUID)
+
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Verify authorship or admin role
+	var authorID uuid.UUID
+	var circleID uuid.UUID
+	err := h.DB.QueryRow(r.Context(), "SELECT author_id, circle_id FROM posts WHERE id = $1", postID).Scan(&authorID, &circleID)
+	if err != nil {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+
+	isAdmin, _ := h.checkRole(r.Context(), circleID, userID, models.RoleAdmin)
+
+	if authorID != userID && !isAdmin {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	_, err = h.DB.Exec(r.Context(), "UPDATE posts SET content = $1, updated_at = NOW() WHERE id = $2", req.Content, postID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func (h *Handler) UpdateCircle(w http.ResponseWriter, r *http.Request) {
 	circleIDStr := chi.URLParam(r, "circleID")
 	circleID, err := uuid.Parse(circleIDStr)
@@ -530,6 +623,11 @@ func (h *Handler) UpdateCircle(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" {
+		http.Error(w, "Circle name cannot be empty", http.StatusBadRequest)
 		return
 	}
 
@@ -573,7 +671,6 @@ func (h *Handler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Code         string            `json:"code"`
 		RoleToGrant  models.CircleRole `json:"role_to_grant"`
 		MaxUses      *int              `json:"max_uses"`
 		ExpiresInHrs *int              `json:"expires_in_hrs"`
@@ -582,6 +679,9 @@ func (h *Handler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	// Generate a random user-friendly code
+	code := generateInviteCode()
 
 	var expiresAt *time.Time
 	if req.ExpiresInHrs != nil {
@@ -592,14 +692,85 @@ func (h *Handler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 	_, err = h.DB.Exec(r.Context(),
 		`INSERT INTO invites (code, circle_id, created_by_id, role_to_grant, max_uses, expires_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		req.Code, circleID, userID, req.RoleToGrant, req.MaxUses, expiresAt)
+		code, circleID, userID, req.RoleToGrant, req.MaxUses, expiresAt)
 
 	if err != nil {
-		http.Error(w, "Invite code already exists or server error", http.StatusConflict)
+		http.Error(w, "Failed to create invite", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"code": code})
+}
+
+func (h *Handler) ListInvites(w http.ResponseWriter, r *http.Request) {
+	circleIDStr := chi.URLParam(r, "circleID")
+	circleID, _ := uuid.Parse(circleIDStr)
+
+	rows, err := h.DB.Query(r.Context(),
+		`SELECT i.id, i.code, i.role_to_grant, i.max_uses, i.used_count, i.expires_at, i.created_at, u.username
+		 FROM invites i
+		 JOIN users u ON i.created_by_id = u.id
+		 WHERE i.circle_id = $1
+		 ORDER BY i.created_at DESC`, circleID)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type inviteResponse struct {
+		ID          uuid.UUID         `json:"id"`
+		Code        string            `json:"code"`
+		RoleToGrant models.CircleRole `json:"role_to_grant"`
+		MaxUses     *int              `json:"max_uses"`
+		UsedCount   int               `json:"used_count"`
+		ExpiresAt   *time.Time        `json:"expires_at"`
+		CreatedAt   time.Time         `json:"created_at"`
+		CreatedBy   string            `json:"created_by"`
+	}
+
+	var invites []inviteResponse = []inviteResponse{}
+	for rows.Next() {
+		var i inviteResponse
+		err := rows.Scan(&i.ID, &i.Code, &i.RoleToGrant, &i.MaxUses, &i.UsedCount, &i.ExpiresAt, &i.CreatedAt, &i.CreatedBy)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		invites = append(invites, i)
+	}
+
+	json.NewEncoder(w).Encode(invites)
+}
+
+func (h *Handler) DeleteInvite(w http.ResponseWriter, r *http.Request) {
+	circleIDStr := chi.URLParam(r, "circleID")
+	circleID, _ := uuid.Parse(circleIDStr)
+	inviteIDStr := chi.URLParam(r, "inviteID")
+	inviteID, _ := uuid.Parse(inviteIDStr)
+
+	userID := r.Context().Value("user_id").(uuid.UUID)
+	allowed, err := h.checkRole(r.Context(), circleID, userID, models.RoleMod) // Mods can revoke invites
+	if err != nil || !allowed {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	_, err = h.DB.Exec(r.Context(), "DELETE FROM invites WHERE id = $1 AND circle_id = $2", inviteID, circleID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func generateInviteCode() string {
+	b := make([]byte, 6)
+	rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 func (h *Handler) UpdateMember(w http.ResponseWriter, r *http.Request) {
@@ -691,6 +862,43 @@ func (h *Handler) ListTags(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(tags)
+}
+
+func (h *Handler) CreateTag(w http.ResponseWriter, r *http.Request) {
+	circleIDStr := chi.URLParam(r, "circleID")
+	circleID, _ := uuid.Parse(circleIDStr)
+
+	userID := r.Context().Value("user_id").(uuid.UUID)
+	allowed, err := h.checkRole(r.Context(), circleID, userID, models.RoleMod) // Mods can create tags
+	if err != nil || !allowed {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	name := strings.TrimSpace(strings.ToLower(req.Name))
+	if name == "" {
+		http.Error(w, "Tag name is required", http.StatusBadRequest)
+		return
+	}
+
+	_, err = h.DB.Exec(r.Context(),
+		"INSERT INTO tags (circle_id, name) VALUES ($1, $2) ON CONFLICT (circle_id, name) DO NOTHING",
+		circleID, name)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
 }
 
 func (h *Handler) PinTag(w http.ResponseWriter, r *http.Request) {

@@ -15,7 +15,11 @@
 						: 'bg-gray-800 hover:bg-purple-500',
 				]"
 			>
-				{{ circle.name[0].toUpperCase() }}
+				{{
+					circle.name && circle.name.length > 0
+						? circle.name[0].toUpperCase()
+						: "?"
+				}}
 			</div>
 			<div
 				@click="showCreateModal = true"
@@ -114,10 +118,12 @@
 import { onMounted, computed, watch, ref } from "vue";
 import { useAuthStore } from "../stores/auth";
 import { useCircleStore } from "../stores/circles";
+import { useToastStore } from "../stores/toast";
 import { useRouter, useRoute } from "vue-router";
 
 const auth = useAuthStore();
 const circleStore = useCircleStore();
+const toast = useToastStore();
 const router = useRouter();
 const route = useRoute();
 
@@ -141,8 +147,17 @@ const syncActiveCircle = () => {
 	}
 };
 
+const loadingCircles = ref(false);
+
 onMounted(async () => {
-	await circleStore.fetchCircles();
+	if (circleStore.circles.length === 0 && !loadingCircles.value) {
+		loadingCircles.value = true;
+		try {
+			await circleStore.fetchCircles();
+		} finally {
+			loadingCircles.value = false;
+		}
+	}
 	syncActiveCircle();
 });
 
@@ -157,11 +172,12 @@ const handleCreateCircle = async () => {
 	if (!newCircle.value.name.trim()) return;
 	try {
 		const res = await circleStore.createCircle(newCircle.value);
+		toast.success(`Circle "${newCircle.value.name}" created!`);
 		showCreateModal.value = false;
 		newCircle.value = { name: "", description: "" };
 		router.push(`/circle/${res.id}`);
 	} catch (err) {
-		alert("Failed to create circle");
+		toast.error("Failed to create circle");
 	}
 };
 

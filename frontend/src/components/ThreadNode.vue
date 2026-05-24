@@ -1,6 +1,8 @@
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useCircleStore } from "../stores/circles";
+import { useAuthStore } from "../stores/auth";
+import { useToastStore } from "../stores/toast";
 
 const props = defineProps({
 	node: Object,
@@ -9,8 +11,19 @@ const props = defineProps({
 
 const emit = defineEmits(["reply-created"]);
 const circleStore = useCircleStore();
+const auth = useAuthStore();
+const toast = useToastStore();
+
+const canEdit = computed(() => {
+	return (
+		auth.user?.id === props.node.author_id ||
+		circleStore.activeCircle?.role === "admin"
+	);
+});
 const showReplyBox = ref(false);
 const replyContent = ref("");
+const isEditing = ref(false);
+const editContent = ref("");
 
 const formatDate = (dateStr) => {
 	return new Date(dateStr).toLocaleString();
@@ -27,9 +40,31 @@ const submitReply = async () => {
 		});
 		replyContent.value = "";
 		showReplyBox.value = false;
+		toast.success("Reply posted!");
 		emit("reply-created");
 	} catch (err) {
-		alert("Failed to post reply");
+		toast.error("Failed to post reply");
+	}
+};
+
+const startEdit = () => {
+	editContent.value = props.node.content;
+	isEditing.value = true;
+};
+
+const submitEdit = async () => {
+	if (!editContent.value.trim()) return;
+	try {
+		await circleStore.updatePost(
+			props.circleId,
+			props.node.id,
+			editContent.value,
+		);
+		isEditing.value = false;
+		toast.success("Post updated!");
+		emit("reply-created"); // Refresh to show new content
+	} catch (err) {
+		toast.error("Failed to update post");
 	}
 };
 </script>
@@ -63,18 +98,55 @@ const submitReply = async () => {
 					<span class="text-[10px] text-gray-500">{{
 						formatDate(node.created_at)
 					}}</span>
+					<span v-if="node.updated_at" class="text-[10px] text-gray-500 italic">
+						(edited {{ formatDate(node.updated_at) }})
+					</span>
 				</div>
 
-				<button
-					@click="showReplyBox = !showReplyBox"
-					class="text-xs text-purple-400 hover:text-purple-300 font-medium"
-				>
-					{{ showReplyBox ? "Cancel" : "Reply" }}
-				</button>
+				<div class="flex items-center space-x-2">
+					<button
+						v-if="canEdit && !isEditing"
+						@click="startEdit"
+						class="text-xs text-gray-500 hover:text-white font-medium"
+					>
+						Edit
+					</button>
+					<button
+						@click="showReplyBox = !showReplyBox"
+						class="text-xs text-purple-400 hover:text-purple-300 font-medium"
+					>
+						{{ showReplyBox ? "Cancel" : "Reply" }}
+					</button>
+				</div>
 			</div>
 
 			<h2 v-if="node.title" class="text-xl font-bold mb-3">{{ node.title }}</h2>
-			<div class="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">
+
+			<div v-if="isEditing" class="space-y-2">
+				<textarea
+					v-model="editContent"
+					class="w-full bg-gray-700 p-2 rounded border border-gray-600 focus:outline-none text-sm"
+					rows="4"
+				></textarea>
+				<div class="flex justify-end space-x-2">
+					<button
+						@click="isEditing = false"
+						class="text-xs text-gray-400 hover:text-white"
+					>
+						Cancel
+					</button>
+					<button
+						@click="submitEdit"
+						class="bg-purple-600 px-3 py-1 rounded font-bold text-xs"
+					>
+						Save
+					</button>
+				</div>
+			</div>
+			<div
+				v-else
+				class="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed"
+			>
 				{{ node.content }}
 			</div>
 

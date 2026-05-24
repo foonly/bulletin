@@ -85,9 +85,11 @@ func main() {
 
 			r.Get("/circles", postHandler.ListCircles)
 			r.Route("/circles/{circleID}", func(r chi.Router) {
+				r.Use(postHandler.MembershipMiddleware)
 				r.Put("/", postHandler.UpdateCircle)
 				r.Get("/threads", postHandler.ListThreads)
 				r.Get("/threads/{postID}", postHandler.GetThread)
+				r.Put("/threads/{postID}", postHandler.UpdatePost)
 				r.Post("/read/{entityID}", postHandler.UpdateReadMarker)
 				r.Get("/posts", postHandler.ListPosts)
 				r.Post("/posts", postHandler.CreatePost)
@@ -95,8 +97,11 @@ func main() {
 				r.Put("/members/{userID}", postHandler.UpdateMember)
 				r.Delete("/members/{userID}", postHandler.DeleteMember)
 				r.Get("/tags", postHandler.ListTags)
+				r.Post("/tags", postHandler.CreateTag)
 				r.Post("/tags/{tagID}/pin", postHandler.PinTag)
+				r.Get("/invites", postHandler.ListInvites)
 				r.Post("/invites", postHandler.CreateInvite)
+				r.Delete("/invites/{inviteID}", postHandler.DeleteInvite)
 				r.Get("/chat/ws", chatHub.HandleWS)
 				r.Get("/chat/history", chatHub.GetHistory)
 			})
