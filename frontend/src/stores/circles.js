@@ -61,6 +61,9 @@ export const useCircleStore = defineStore("circles", {
 				content,
 			});
 		},
+		async deletePost(circleId, postId) {
+			await axios.delete(`/api/circles/${circleId}/threads/${postId}`);
+		},
 		async markRead(circleId, entityId) {
 			await axios.post(`/api/circles/${circleId}/read/${entityId}`);
 		},

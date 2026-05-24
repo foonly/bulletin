@@ -90,6 +90,7 @@ func main() {
 				r.Get("/threads", postHandler.ListThreads)
 				r.Get("/threads/{postID}", postHandler.GetThread)
 				r.Put("/threads/{postID}", postHandler.UpdatePost)
+				r.Delete("/threads/{postID}", postHandler.DeletePost)
 				r.Post("/read/{entityID}", postHandler.UpdateReadMarker)
 				r.Get("/posts", postHandler.ListPosts)
 				r.Post("/posts", postHandler.CreatePost)

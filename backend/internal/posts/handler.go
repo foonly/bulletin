@@ -431,8 +431,9 @@ type threadResponse struct {
 	Content     string     `json:"content"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
-	ReplyCount  int64      `json:"reply_count"`
-	UnreadCount int64      `json:"unread_count"`
+	ReplyCount  int        `json:"reply_count"`
+	UnreadCount int        `json:"unread_count"`
+	IsDeleted   bool       `json:"is_deleted"`
 	LastReplyAt *time.Time `json:"last_reply_at"`
 	Tags        []string   `json:"tags"`
 }
@@ -484,7 +485,7 @@ func (h *Handler) ListThreads(w http.ResponseWriter, r *http.Request) {
 			GROUP BY d.root_id
 		)
 		SELECT
-			p.id, p.author_id, u.username, COALESCE(p.title, ''), p.content, p.created_at, p.updated_at,
+			p.id, p.author_id, u.username, COALESCE(p.title, ''), p.content, p.created_at, p.updated_at, p.is_deleted,
 			COALESCE(s.total_replies, 0) as total_replies,
 			s.last_reply_at,
 			COALESCE(un.count, 0) as unread_count,
@@ -517,7 +518,7 @@ func (h *Handler) ListThreads(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var t threadResponse
 		var tagStr string
-		err := rows.Scan(&t.ID, &t.AuthorID, &t.AuthorName, &t.Title, &t.Content, &t.CreatedAt, &t.UpdatedAt, &t.ReplyCount, &t.LastReplyAt, &t.UnreadCount, &tagStr)
+		err := rows.Scan(&t.ID, &t.AuthorID, &t.AuthorName, &t.Title, &t.Content, &t.CreatedAt, &t.UpdatedAt, &t.IsDeleted, &t.ReplyCount, &t.LastReplyAt, &t.UnreadCount, &tagStr)
 		if err != nil {
 			log.Printf("ListThreads scan error: %v\n", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -543,19 +544,19 @@ func (h *Handler) GetThread(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.DB.Query(r.Context(),
 		`WITH RECURSIVE thread_tree AS (
 			-- Base case: the root post
-			SELECT id, author_id, parent_id, title, content, created_at, updated_at, 0 as depth
+			SELECT id, author_id, parent_id, title, content, created_at, updated_at, is_deleted, 0 as depth
 			FROM posts
 			WHERE id = $1
 
 			UNION ALL
 
 			-- Recursive step: find all children
-			SELECT p.id, p.author_id, p.parent_id, p.title, p.content, p.created_at, p.updated_at, tt.depth + 1
+			SELECT p.id, p.author_id, p.parent_id, p.title, p.content, p.created_at, p.updated_at, p.is_deleted, tt.depth + 1
 			FROM posts p
 			JOIN thread_tree tt ON p.parent_id = tt.id
 		)
 		SELECT tt.id, tt.author_id, u.username, tt.parent_id, COALESCE(tt.title, ''), tt.content, tt.created_at, tt.updated_at, tt.depth,
-		       rm.last_read_at
+		       rm.last_read_at, tt.is_deleted
 		FROM thread_tree tt
 		JOIN users u ON tt.author_id = u.id
 		LEFT JOIN read_markers rm ON rm.entity_id = $1 AND rm.user_id = $2
@@ -578,12 +579,13 @@ func (h *Handler) GetThread(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt  *time.Time `json:"updated_at"`
 		Depth      int        `json:"depth"`
 		LastReadAt *time.Time `json:"last_read_at"`
+		IsDeleted  bool       `json:"is_deleted"`
 	}
 
 	var posts []postNode = []postNode{}
 	for rows.Next() {
 		var p postNode
-		err := rows.Scan(&p.ID, &p.AuthorID, &p.AuthorName, &p.ParentID, &p.Title, &p.Content, &p.CreatedAt, &p.UpdatedAt, &p.Depth, &p.LastReadAt)
+		err := rows.Scan(&p.ID, &p.AuthorID, &p.AuthorName, &p.ParentID, &p.Title, &p.Content, &p.CreatedAt, &p.UpdatedAt, &p.Depth, &p.LastReadAt, &p.IsDeleted)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -592,6 +594,51 @@ func (h *Handler) GetThread(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(posts)
+}
+
+func (h *Handler) DeletePost(w http.ResponseWriter, r *http.Request) {
+	circleIDStr := chi.URLParam(r, "circleID")
+	circleID, _ := uuid.Parse(circleIDStr)
+	postIDStr := chi.URLParam(r, "postID")
+	postID, _ := uuid.Parse(postIDStr)
+	userID := r.Context().Value("user_id").(uuid.UUID)
+
+	// Check if user is author OR admin/mod of the circle
+	var authorID uuid.UUID
+	var parentID *uuid.UUID
+	err := h.DB.QueryRow(r.Context(), "SELECT author_id, parent_id FROM posts WHERE id = $1 AND circle_id = $2", postID, circleID).Scan(&authorID, &parentID)
+	if err != nil {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+
+	var userRole string
+	err = h.DB.QueryRow(r.Context(), "SELECT role FROM circle_members WHERE circle_id = $1 AND user_id = $2", circleID, userID).Scan(&userRole)
+	if err != nil {
+		http.Error(w, "User not in circle", http.StatusForbidden)
+		return
+	}
+
+	canDelete := authorID == userID || userRole == "admin" || userRole == "mod"
+	if !canDelete {
+		http.Error(w, "Not authorized to delete this post", http.StatusForbidden)
+		return
+	}
+
+	if parentID == nil {
+		// Hard delete thread
+		_, err = h.DB.Exec(r.Context(), "DELETE FROM posts WHERE id = $1", postID)
+	} else {
+		// Soft delete reply
+		_, err = h.DB.Exec(r.Context(), "UPDATE posts SET content = 'Reply has been deleted', is_deleted = TRUE WHERE id = $1", postID)
+	}
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) UpdateReadMarker(w http.ResponseWriter, r *http.Request) {
@@ -634,9 +681,15 @@ func (h *Handler) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	// Verify authorship or admin role
 	var authorID uuid.UUID
 	var circleID uuid.UUID
-	err := h.DB.QueryRow(r.Context(), "SELECT author_id, circle_id FROM posts WHERE id = $1", postID).Scan(&authorID, &circleID)
+	var isDeleted bool
+	err := h.DB.QueryRow(r.Context(), "SELECT author_id, circle_id, is_deleted FROM posts WHERE id = $1", postID).Scan(&authorID, &circleID, &isDeleted)
 	if err != nil {
 		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+
+	if isDeleted {
+		http.Error(w, "Cannot edit a deleted post", http.StatusBadRequest)
 		return
 	}
 

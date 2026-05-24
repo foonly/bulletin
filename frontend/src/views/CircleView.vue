@@ -392,12 +392,19 @@
 								:key="msg.id"
 								:class="[
 									'text-sm px-2 py-1 rounded transition-all duration-500',
+									msg.user_id === auth.user?.id ? 'bg-white/5' : '',
 									isUnread(msg)
 										? 'bg-purple-600/10 border-l-2 border-purple-500'
 										: 'border-l-2 border-transparent',
 								]"
 							>
-								<span class="font-bold text-purple-400"
+								<span
+									:class="[
+										'font-bold',
+										msg.user_id === auth.user?.id
+											? 'text-purple-300'
+											: 'text-purple-500',
+									]"
 									>{{ msg.username }}:</span
 								>
 								<span
@@ -840,11 +847,17 @@ const loadCircleData = async () => {
 };
 
 const openThread = async (postId) => {
-	await circleStore.fetchThread(props.id, postId);
-	activeThread.value = circleStore.activeThread;
+	try {
+		await circleStore.fetchThread(props.id, postId);
+		activeThread.value = circleStore.activeThread;
 
-	// Start read marker logic
-	startReadTracking(postId);
+		// Start read marker logic
+		startReadTracking(postId);
+	} catch (err) {
+		// If thread is deleted or not found, go back to list
+		activeThread.value = null;
+		circleStore.fetchThreads(props.id, selectedTag.value);
+	}
 };
 
 let readTimer = null;

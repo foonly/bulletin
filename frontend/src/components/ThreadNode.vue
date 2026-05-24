@@ -76,6 +76,23 @@ const submitEdit = async () => {
 		toast.error("Failed to update post");
 	}
 };
+
+const handleDelete = async () => {
+	if (
+		!confirm(
+			"Are you sure you want to delete this? This action cannot be undone.",
+		)
+	)
+		return;
+
+	try {
+		await circleStore.deletePost(props.circleId, props.node.id);
+		toast.success(props.node.parent_id ? "Reply deleted" : "Thread deleted");
+		emit("reply-created"); // Refresh view
+	} catch (err) {
+		toast.error("Failed to delete post");
+	}
+};
 </script>
 
 <template>
@@ -93,6 +110,7 @@ const submitEdit = async () => {
 					? 'bg-gray-800/50 border-gray-700'
 					: 'bg-gray-800 border-purple-900/50 p-6',
 				isUnread ? 'border-l-4 border-l-purple-500 bg-purple-500/5' : '',
+				node.is_deleted ? 'opacity-50 grayscale' : '',
 			]"
 		>
 			<div class="flex items-center justify-between mb-2">
@@ -100,26 +118,42 @@ const submitEdit = async () => {
 					<div
 						class="w-6 h-6 bg-purple-900 rounded-full flex items-center justify-center text-[10px] font-bold"
 					>
-						{{ node.author_name[0].toUpperCase() }}
+						{{
+							node.is_deleted
+								? "?"
+								: node.author_name
+									? node.author_name[0].toUpperCase()
+									: "?"
+						}}
 					</div>
-					<span class="font-bold text-purple-400 text-sm">{{
-						node.author_name
-					}}</span>
+					<span class="font-bold text-purple-400 text-sm">
+						{{ node.is_deleted ? "Deleted" : node.author_name }}
+					</span>
 					<span class="text-[10px] text-gray-500">{{
 						formatDate(node.created_at)
 					}}</span>
-					<span v-if="node.updated_at" class="text-[10px] text-gray-500 italic">
+					<span
+						v-if="node.updated_at && !node.is_deleted"
+						class="text-[10px] text-gray-500 italic"
+					>
 						(edited {{ formatDate(node.updated_at) }})
 					</span>
 				</div>
 
-				<div class="flex items-center space-x-2">
+				<div class="flex items-center space-x-2" v-if="!node.is_deleted">
 					<button
 						v-if="canEdit && !isEditing"
 						@click="startEdit"
 						class="text-xs text-gray-500 hover:text-white font-medium"
 					>
 						Edit
+					</button>
+					<button
+						v-if="canEdit && !isEditing"
+						@click="handleDelete"
+						class="text-xs text-red-500 hover:text-red-400 font-medium"
+					>
+						Delete
 					</button>
 					<button
 						@click="showReplyBox = !showReplyBox"
@@ -173,6 +207,7 @@ const submitEdit = async () => {
 			<div
 				v-else
 				class="markdown-content text-gray-300 text-sm leading-relaxed"
+				:class="{ 'italic text-gray-500': node.is_deleted }"
 				v-html="renderMarkdown(node.content)"
 			></div>
 

@@ -41,4 +41,5 @@ type Circle struct {
 	CreatedAt          time.Time  `json:"created_at"`
 	LastReadAt         *time.Time `json:"last_read_at,omitempty"`
 	UnreadCount        int        `json:"unread_count"`
+	IsDeleted          bool       `json:"is_deleted"`
 }
