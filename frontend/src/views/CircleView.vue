@@ -1,43 +1,5 @@
 <template>
 	<div class="flex flex-col h-full">
-		<!-- Tabs -->
-		<div class="flex bg-gray-800 px-4">
-			<button
-				@click="tab = 'posts'"
-				:class="[
-					'px-4 py-2 border-b-2 transition',
-					tab === 'posts'
-						? 'border-purple-500 text-purple-500'
-						: 'border-transparent text-gray-400 hover:text-gray-200',
-				]"
-			>
-				Posts
-			</button>
-			<button
-				@click="tab = 'chat'"
-				:class="[
-					'px-4 py-2 border-b-2 transition',
-					tab === 'chat'
-						? 'border-purple-500 text-purple-500'
-						: 'border-transparent text-gray-400 hover:text-gray-200',
-				]"
-			>
-				Chat
-			</button>
-			<button
-				v-if="canManage"
-				@click="tab = 'settings'"
-				:class="[
-					'px-4 py-2 border-b-2 transition',
-					tab === 'settings'
-						? 'border-purple-500 text-purple-500'
-						: 'border-transparent text-gray-400 hover:text-gray-200',
-				]"
-			>
-				Settings
-			</button>
-		</div>
-
 		<!-- Content -->
 		<div class="flex-1 flex overflow-hidden">
 			<!-- Error State -->
@@ -58,57 +20,152 @@
 
 			<!-- Normal UI -->
 			<template v-else>
-				<!-- Tag Sidebar -->
+				<!-- Sidebar -->
 				<div
-					v-if="tab === 'posts' && !activeThread"
-					class="w-48 bg-gray-950/50 border-r border-gray-800 p-4 flex flex-col space-y-2 overflow-y-auto"
+					class="w-64 bg-gray-950/50 border-r border-gray-800 flex flex-col overflow-hidden"
 				>
-					<h3
-						class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
-					>
-						Tags
-					</h3>
-					<button
-						@click="filterByTag('')"
-						:class="[
-							'text-left px-2 py-1 rounded text-sm transition-colors',
-							!selectedTag
-								? 'bg-purple-600 text-white'
-								: 'text-gray-400 hover:bg-gray-800',
-						]"
-					>
-						All Tags
-					</button>
+					<!-- Circle Header -->
 					<div
-						v-for="tag in circleStore.tags"
-						:key="tag.id"
-						class="group flex items-center justify-between"
+						class="p-4 border-b border-gray-800 flex items-center justify-between"
 					>
+						<h2
+							class="font-bold truncate text-gray-100"
+							:title="circleStore.activeCircle?.name"
+						>
+							{{ circleStore.activeCircle?.name }}
+						</h2>
 						<button
-							@click="filterByTag(tag.name)"
+							v-if="canManage"
+							@click="tab = 'settings'"
 							:class="[
-								'flex-1 text-left px-2 py-1 rounded text-sm transition-colors truncate',
-								selectedTag === tag.name
-									? 'bg-purple-600 text-white'
-									: 'text-gray-400 hover:bg-gray-800',
+								'p-1 rounded transition-colors',
+								tab === 'settings'
+									? 'text-purple-400'
+									: 'text-gray-500 hover:text-gray-300',
 							]"
+							title="Settings"
 						>
-							<span v-if="tag.is_pinned" class="mr-1">📌</span>{{ tag.name }}
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-5 w-5"
+								viewBox="0 0 20 20"
+								fill="currentColor"
+							>
+								<path
+									fill-rule="evenodd"
+									d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+									clip-rule="evenodd"
+								/>
+							</svg>
 						</button>
-						<button
-							v-if="isAdmin && !tag.is_pinned"
-							@click="togglePin(tag.id, true)"
-							class="hidden group-hover:block text-[10px] text-gray-600 hover:text-purple-400 p-1"
+					</div>
+
+					<div class="flex-1 overflow-y-auto p-4 space-y-6">
+						<!-- Main Nav -->
+						<div class="space-y-1">
+							<button
+								@click="tab = 'new-post'"
+								class="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-bold mb-4 shadow-lg"
+							>
+								<span>+</span>
+								<span>Start New Thread</span>
+							</button>
+
+							<button
+								@click="tab = 'chat'"
+								:class="[
+									'w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors',
+									tab === 'chat'
+										? 'bg-purple-600 text-white'
+										: 'text-gray-400 hover:bg-gray-800 hover:text-gray-200',
+								]"
+							>
+								<span class="text-lg">💬</span>
+								<span class="font-medium">Chat</span>
+								<span
+									v-if="unreadChatCount > 0 && tab !== 'chat'"
+									class="ml-auto bg-purple-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow-sm"
+								>
+									{{ unreadChatCount }}
+								</span>
+							</button>
+							<button
+								@click="
+									tab = 'posts';
+									activeThread = null;
+									filterByTag('');
+								"
+								:class="[
+									'w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors',
+									tab === 'posts' && !selectedTag
+										? 'bg-purple-600 text-white'
+										: 'text-gray-400 hover:bg-gray-800 hover:text-gray-200',
+								]"
+							>
+								<span class="text-lg">📰</span>
+								<span class="font-medium">Posts</span>
+							</button>
+						</div>
+
+						<!-- Tags -->
+						<div class="space-y-2">
+							<h3
+								class="px-3 text-xs font-bold text-gray-500 uppercase tracking-wider"
+							>
+								Tags
+							</h3>
+							<div class="space-y-0.5">
+								<div
+									v-for="tag in circleStore.tags"
+									:key="tag.id"
+									class="group flex items-center justify-between"
+								>
+									<button
+										@click="
+											tab = 'posts';
+											activeThread = null;
+											filterByTag(tag.name);
+										"
+										:class="[
+											'flex-1 text-left px-3 py-1.5 rounded-lg text-sm transition-colors truncate',
+											tab === 'posts' && selectedTag === tag.name
+												? 'bg-purple-600 text-white'
+												: 'text-gray-400 hover:bg-gray-800 hover:text-gray-200',
+										]"
+									>
+										<span v-if="tag.is_pinned" class="mr-2">📌</span
+										>{{ tag.name }}
+									</button>
+									<button
+										v-if="isAdmin && !tag.is_pinned"
+										@click="togglePin(tag.id, true)"
+										class="hidden group-hover:block text-[10px] text-gray-600 hover:text-purple-400 p-1"
+										title="Pin tag"
+									>
+										Pin
+									</button>
+									<button
+										v-if="isAdmin && tag.is_pinned"
+										@click="togglePin(tag.id, false)"
+										class="text-[10px] text-purple-400 p-1"
+										title="Unpin tag"
+									>
+										Unpin
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Bottom Link -->
+					<div class="p-4 border-t border-gray-800">
+						<router-link
+							to="/"
+							class="flex items-center space-x-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
 						>
-							Pin
-						</button>
-						<button
-							v-if="isAdmin && tag.is_pinned"
-							@click="togglePin(tag.id, false)"
-							class="text-[10px] text-purple-400 p-1"
-						>
-							Unpin
-						</button>
+							<span>←</span>
+							<span>Dashboard</span>
+						</router-link>
 					</div>
 				</div>
 
@@ -116,97 +173,16 @@
 					<div v-if="tab === 'posts'" class="space-y-4">
 						<!-- Thread List -->
 						<div v-if="!activeThread" class="space-y-4">
-							<div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
-								<h3 class="text-lg font-bold mb-4">Start a new thread</h3>
-								<input
-									v-model="newPost.title"
-									placeholder="Thread Title"
-									class="w-full bg-gray-700 p-2 rounded mb-2 border border-gray-600 focus:outline-none"
-								/>
-								<textarea
-									v-model="newPost.content"
-									placeholder="What's on your mind?"
-									class="w-full bg-gray-700 p-2 rounded border border-gray-600 focus:outline-none"
-									rows="3"
-								></textarea>
-
-								<!-- Tag Selector -->
-								<div class="mt-3 space-y-2">
-									<label class="text-xs text-gray-500 font-bold uppercase"
-										>Tags (at least one required)</label
-									>
-									<div class="flex flex-wrap gap-2">
-										<button
-											v-for="tag in circleStore.tags"
-											:key="tag.id"
-											@click="toggleTagSelection(tag.name)"
-											:class="[
-												'px-2 py-1 rounded text-xs border transition-colors',
-												newPost.tags.includes(tag.name)
-													? 'bg-purple-600 border-purple-500 text-white'
-													: 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500',
-											]"
-										>
-											{{ tag.name }}
-										</button>
-										<div
-											v-if="circleStore.activeCircle?.allow_freeform_tags"
-											class="flex items-center space-x-1"
-										>
-											<input
-												v-model="newTagName"
-												@keyup.enter="addCustomTag"
-												placeholder="Add tag..."
-												class="bg-gray-900 border border-gray-700 text-xs px-2 py-1 rounded focus:outline-none focus:border-purple-500 w-24"
-											/>
-											<button
-												@click="addCustomTag"
-												class="text-xs text-purple-400 hover:text-purple-300"
-											>
-												+
-											</button>
-										</div>
-									</div>
-									<div
-										v-if="newPost.tags.length > 0"
-										class="flex flex-wrap gap-1 mt-1"
-									>
-										<span
-											v-for="tag in newPost.tags"
-											:key="tag"
-											class="bg-purple-900/30 text-purple-400 text-[10px] px-1.5 py-0.5 rounded flex items-center"
-										>
-											{{ tag }}
-											<button
-												@click="toggleTagSelection(tag)"
-												class="ml-1 text-purple-600 hover:text-purple-400"
-											>
-												×
-											</button>
-										</span>
-									</div>
-								</div>
-
-								<div class="flex justify-end mt-4">
-									<button
-										@click="handleCreatePost"
-										:disabled="
-											!newPost.content.trim() ||
-											!newPost.title.trim() ||
-											newPost.tags.length === 0
-										"
-										class="bg-purple-600 px-4 py-1 rounded font-bold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-									>
-										Post
-									</button>
-								</div>
-							</div>
-
 							<div
 								v-for="thread in circleStore.threads"
 								:key="thread.id"
 								@click="openThread(thread.id)"
-								class="bg-gray-800 p-4 rounded-lg border border-gray-700 cursor-pointer hover:border-purple-500 transition-colors"
+								:class="[
+									'bg-gray-800 p-4 rounded-lg border cursor-pointer hover:border-purple-500 transition-all duration-500',
+									thread.unread_count > 0
+										? 'border-l-4 border-l-purple-500 bg-purple-500/5 border-gray-700'
+										: 'border-gray-700',
+								]"
 							>
 								<div class="flex items-center justify-between mb-2 text-xs">
 									<div class="flex items-center space-x-2">
@@ -243,7 +219,7 @@
 										-webkit-box-orient: vertical;
 									"
 								>
-									{{ thread.content }}
+									{{ stripMarkdown(thread.content) }}
 								</p>
 
 								<div
@@ -279,17 +255,155 @@
 						</div>
 					</div>
 
+					<div v-else-if="tab === 'new-post'" class="max-w-3xl mx-auto w-full">
+						<div
+							class="bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-xl"
+						>
+							<div class="flex items-center justify-between mb-6">
+								<h3 class="text-xl font-bold">Start a new thread</h3>
+								<button
+									@click="tab = 'posts'"
+									class="text-gray-400 hover:text-gray-200"
+								>
+									✕
+								</button>
+							</div>
+
+							<div class="space-y-4">
+								<div class="space-y-1">
+									<label class="text-xs text-gray-500 font-bold uppercase"
+										>Title</label
+									>
+									<input
+										v-model="newPost.title"
+										placeholder="Give your thread a clear title"
+										class="w-full bg-gray-900 p-3 rounded-lg border border-gray-700 focus:outline-none focus:border-purple-500 transition-colors"
+									/>
+								</div>
+
+								<div class="space-y-1">
+									<div class="flex items-center justify-between">
+										<label class="text-xs text-gray-500 font-bold uppercase"
+											>Content</label
+										>
+										<button
+											@click="showPreview = !showPreview"
+											class="text-[10px] uppercase font-bold text-purple-400 hover:text-purple-300"
+										>
+											{{ showPreview ? "Edit Content" : "Show Preview" }}
+										</button>
+									</div>
+									<div
+										v-if="showPreview"
+										class="min-h-[200px] bg-gray-900 p-3 rounded-lg border border-gray-700 markdown-content text-sm"
+										v-html="renderMarkdown(newPost.content)"
+									></div>
+									<textarea
+										v-else
+										v-model="newPost.content"
+										placeholder="What's on your mind? (Markdown supported)"
+										class="w-full bg-gray-900 p-3 rounded-lg border border-gray-700 focus:outline-none focus:border-purple-500 transition-colors min-h-[200px]"
+									></textarea>
+								</div>
+
+								<!-- Tag Selector -->
+								<div class="space-y-2">
+									<label class="text-xs text-gray-500 font-bold uppercase"
+										>Tags (at least one required)</label
+									>
+									<div class="flex flex-wrap gap-2">
+										<button
+											v-for="tag in circleStore.tags"
+											:key="tag.id"
+											@click="toggleTagSelection(tag.name)"
+											:class="[
+												'px-3 py-1 rounded-full text-xs border transition-colors',
+												newPost.tags.includes(tag.name)
+													? 'bg-purple-600 border-purple-500 text-white'
+													: 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500',
+											]"
+										>
+											{{ tag.name }}
+										</button>
+										<div
+											v-if="circleStore.activeCircle?.allow_freeform_tags"
+											class="flex items-center space-x-1"
+										>
+											<input
+												v-model="newTagName"
+												@keyup.enter="addCustomTag"
+												placeholder="Add custom tag..."
+												class="bg-gray-900 border border-gray-700 text-xs px-3 py-1 rounded-full focus:outline-none focus:border-purple-500 w-32"
+											/>
+										</div>
+									</div>
+									<div
+										v-if="newPost.tags.length > 0"
+										class="flex flex-wrap gap-1.5 mt-2"
+									>
+										<span
+											v-for="tag in newPost.tags"
+											:key="tag"
+											class="bg-purple-900/30 text-purple-400 text-xs px-2.5 py-1 rounded-full border border-purple-500/30 flex items-center"
+										>
+											{{ tag }}
+											<button
+												@click="toggleTagSelection(tag)"
+												class="ml-2 text-purple-600 hover:text-purple-400 font-bold"
+											>
+												×
+											</button>
+										</span>
+									</div>
+								</div>
+
+								<div
+									class="flex justify-end space-x-3 pt-4 border-t border-gray-700"
+								>
+									<button
+										@click="tab = 'posts'"
+										class="px-6 py-2 rounded-lg font-bold text-gray-400 hover:bg-gray-700 transition-colors"
+									>
+										Cancel
+									</button>
+									<button
+										@click="handleCreatePost"
+										:disabled="
+											!newPost.content.trim() ||
+											!newPost.title.trim() ||
+											newPost.tags.length === 0
+										"
+										class="bg-purple-600 px-8 py-2 rounded-lg font-bold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+									>
+										Create Thread
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+
 					<div v-else-if="tab === 'chat'" class="flex flex-col h-full">
-						<div class="flex-1 overflow-y-auto space-y-2 mb-4" ref="chatBox">
+						<div
+							class="flex-1 overflow-y-auto space-y-1 mb-4 p-2"
+							ref="chatBox"
+						>
 							<div
 								v-for="msg in circleStore.chatMessages"
 								:key="msg.id"
-								class="text-sm"
+								:class="[
+									'text-sm px-2 py-1 rounded transition-all duration-500',
+									isUnread(msg)
+										? 'bg-purple-600/10 border-l-2 border-purple-500'
+										: 'border-l-2 border-transparent',
+								]"
 							>
 								<span class="font-bold text-purple-400"
 									>{{ msg.username }}:</span
 								>
-								<span class="ml-2 text-gray-300">{{ msg.content }}</span>
+								<span
+									class="ml-2 text-gray-300 markdown-content inline-block"
+									v-html="renderMarkdown(msg.content)"
+								></span>
 								<span class="ml-2 text-[10px] text-gray-600">{{
 									formatDate(msg.created_at)
 								}}</span>
@@ -583,6 +697,7 @@ import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
 import { useCircleStore } from "../stores/circles";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
+import { renderMarkdown, stripMarkdown } from "../utils/markdown";
 import axios from "axios";
 import ThreadNode from "../components/ThreadNode.vue";
 
@@ -591,6 +706,7 @@ const circleStore = useCircleStore();
 const auth = useAuthStore();
 const toast = useToastStore();
 const tab = ref("posts");
+const showPreview = ref(false);
 const chatInput = ref("");
 const chatBox = ref(null);
 const newPost = ref({ title: "", content: "", tags: [] });
@@ -602,6 +718,12 @@ const members = ref([]);
 const onlineUserIds = ref(new Set());
 const activeThread = ref(null);
 const error = ref(null);
+const chatReadTimer = ref(null);
+
+const unreadChatCount = computed(() => {
+	return circleStore.chatMessages.filter(isUnread).length;
+});
+
 const settings = ref({
 	name: "",
 	description: "",
@@ -627,6 +749,13 @@ const canManage = computed(() => {
 const isAdmin = computed(() => {
 	return circleStore.activeCircle?.role === "admin";
 });
+
+const isUnread = (msg) => {
+	if (msg.user_id === auth.user?.id) return false;
+	const lastRead = circleStore.activeCircle?.last_read_at;
+	if (!lastRead) return true;
+	return new Date(msg.created_at) > new Date(lastRead);
+};
 
 const threadTree = computed(() => {
 	if (!activeThread.value || !activeThread.value.length) return null;
@@ -726,6 +855,25 @@ const startReadTracking = (entityId) => {
 	readTimer = setTimeout(async () => {
 		try {
 			await circleStore.markRead(props.id, entityId);
+
+			// Update activeThread locally to remove highlights
+			if (activeThread.value) {
+				const now = new Date().toISOString();
+				activeThread.value.forEach((post) => {
+					post.last_read_at = now;
+				});
+			}
+
+			// Find the thread and decrement global count
+			const thread = circleStore.threads.find((t) => t.id === entityId);
+			if (thread && thread.unread_count > 0 && circleStore.activeCircle) {
+				circleStore.activeCircle.unread_count = Math.max(
+					0,
+					circleStore.activeCircle.unread_count - thread.unread_count,
+				);
+				thread.unread_count = 0;
+			}
+
 			// Refresh threads to update unread counts
 			await circleStore.fetchThreads(props.id);
 		} catch (err) {
@@ -756,6 +904,9 @@ const connectWS = () => {
 		} else {
 			circleStore.addChatMessage(msg);
 			scrollToBottom();
+			if (tab.value === "chat") {
+				startChatReadTracking();
+			}
 		}
 	};
 
@@ -786,6 +937,7 @@ const handleCreatePost = async () => {
 		tags: newPost.value.tags,
 	});
 	newPost.value = { title: "", content: "", tags: [] };
+	tab.value = "posts";
 	await circleStore.fetchThreads(props.id, selectedTag.value);
 	await circleStore.fetchTags(props.id);
 };
@@ -892,11 +1044,36 @@ const scrollToBottom = () => {
 	});
 };
 
+const startChatReadTracking = () => {
+	if (chatReadTimer.value) clearTimeout(chatReadTimer.value);
+	chatReadTimer.value = setTimeout(async () => {
+		try {
+			await circleStore.markRead(props.id, props.id);
+			// Update local state to hide unread markers
+			if (circleStore.activeCircle) {
+				const chatUnread = unreadChatCount.value;
+				circleStore.activeCircle.last_read_at = new Date().toISOString();
+				circleStore.activeCircle.unread_count = Math.max(
+					0,
+					circleStore.activeCircle.unread_count - chatUnread,
+				);
+			}
+		} catch (err) {
+			console.error("Failed to mark chat as read", err);
+		}
+	}, 3000);
+};
+
 watch(() => props.id, loadCircleData);
 watch(tab, (newTab) => {
 	if (newTab === "chat") {
 		scrollToBottom();
-		circleStore.markRead(props.id, props.id); // Mark circle chat as read
+		startChatReadTracking();
+	} else {
+		if (chatReadTimer.value) {
+			clearTimeout(chatReadTimer.value);
+			chatReadTimer.value = null;
+		}
 	}
 });
 

@@ -1,7 +1,7 @@
 <template>
 	<div class="min-h-screen flex items-center justify-center bg-gray-950">
 		<div class="bg-gray-800 p-8 rounded-lg shadow-xl w-96">
-			<h1 class="text-2xl font-bold mb-6 text-center">Bulletin Login</h1>
+			<h1 class="text-2xl font-bold mb-6 text-center">{{ siteName }} Login</h1>
 			<form @submit.prevent="handleLogin">
 				<div class="mb-4">
 					<label class="block text-sm font-medium mb-1">Username</label>
@@ -47,6 +47,7 @@ import { useRouter } from "vue-router";
 const auth = useAuthStore();
 const toast = useToastStore();
 const router = useRouter();
+const siteName = import.meta.env.VITE_SITE_NAME || "Bulletin";
 const username = ref("");
 const password = ref("");
 

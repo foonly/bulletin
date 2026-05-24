@@ -1,7 +1,7 @@
 <template>
 	<div class="min-h-screen flex items-center justify-center bg-gray-950">
 		<div class="bg-gray-800 p-8 rounded-lg shadow-xl w-96">
-			<h1 class="text-2xl font-bold mb-6 text-center">Join Bulletin</h1>
+			<h1 class="text-2xl font-bold mb-6 text-center">Join {{ siteName }}</h1>
 			<form @submit.prevent="handleRegister">
 				<div class="mb-4">
 					<label class="block text-sm font-medium mb-1">Invite Code</label>
@@ -56,6 +56,7 @@ import { useRouter } from "vue-router";
 const auth = useAuthStore();
 const toast = useToastStore();
 const router = useRouter();
+const siteName = import.meta.env.VITE_SITE_NAME || "Bulletin";
 const inviteCode = ref("");
 const username = ref("");
 const password = ref("");
@@ -63,7 +64,7 @@ const password = ref("");
 const handleRegister = async () => {
 	try {
 		await auth.register(username.value, password.value, inviteCode.value);
-		toast.success("Account created! Welcome to Bulletin.");
+		toast.success(`Account created! Welcome to ${siteName}.`);
 		router.push("/");
 	} catch (err) {
 		toast.error(err.response?.data || "Registration failed");

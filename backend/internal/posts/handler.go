@@ -80,10 +80,43 @@ func (h *Handler) ListCircles(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id").(uuid.UUID)
 
 	rows, err := h.DB.Query(r.Context(),
-		`SELECT c.id, c.name, COALESCE(c.description, ''), c.owner_id, c.allow_freeform_tags,
-		        c.invite_min_role, c.chat_retention_days, c.chat_retention_count, c.created_at, cm.role
+		`WITH RECURSIVE post_tree AS (
+			SELECT p.id, p.id as root_id, p.circle_id, p.author_id, p.created_at
+			FROM posts p
+			JOIN circle_members cm ON p.circle_id = cm.circle_id
+			WHERE p.parent_id IS NULL AND cm.user_id = $1
+			UNION ALL
+			SELECT p.id, pt.root_id, p.circle_id, p.author_id, p.created_at
+			FROM posts p
+			JOIN post_tree pt ON p.parent_id = pt.id
+		),
+		circle_unread_posts AS (
+			SELECT pt.circle_id, COUNT(*) as count
+			FROM post_tree pt
+			LEFT JOIN read_markers rm ON rm.entity_id = pt.root_id AND rm.user_id = $1
+			WHERE pt.author_id != $1
+			AND pt.created_at > COALESCE(rm.last_read_at, '1970-01-01')
+			GROUP BY pt.circle_id
+		),
+		circle_unread_chat AS (
+			SELECT chat.circle_id, COUNT(*) as count
+			FROM chat_messages chat
+			JOIN circle_members cm ON chat.circle_id = cm.circle_id
+			LEFT JOIN read_markers rm ON rm.entity_id = chat.circle_id AND rm.user_id = $1
+			WHERE cm.user_id = $1
+			AND chat.user_id != $1
+			AND chat.created_at > COALESCE(rm.last_read_at, '1970-01-01')
+			GROUP BY chat.circle_id
+		)
+		SELECT c.id, c.name, COALESCE(c.description, ''), c.owner_id, c.allow_freeform_tags,
+		        c.invite_min_role, c.chat_retention_days, c.chat_retention_count, c.created_at, cm.role,
+		        rm_chat.last_read_at,
+		        COALESCE(cup.count, 0) + COALESCE(cuc.count, 0) as unread_count
 		 FROM circles c
 		 JOIN circle_members cm ON c.id = cm.circle_id
+		 LEFT JOIN read_markers rm_chat ON rm_chat.entity_id = c.id AND rm_chat.user_id = $1
+		 LEFT JOIN circle_unread_posts cup ON cup.circle_id = c.id
+		 LEFT JOIN circle_unread_chat cuc ON cuc.circle_id = c.id
 		 WHERE cm.user_id = $1`, userID)
 	if err != nil {
 		log.Printf("ListCircles query error: %v\n", err)
@@ -101,7 +134,8 @@ func (h *Handler) ListCircles(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var c circleWithRole
 		err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.OwnerID, &c.AllowFreeformTags,
-			&c.InviteMinRole, &c.ChatRetentionDays, &c.ChatRetentionCount, &c.CreatedAt, &c.Role)
+			&c.InviteMinRole, &c.ChatRetentionDays, &c.ChatRetentionCount, &c.CreatedAt, &c.Role,
+			&c.LastReadAt, &c.UnreadCount)
 		if err != nil {
 			log.Printf("ListCircles scan error: %v\n", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -249,6 +283,32 @@ func (h *Handler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Update read marker for the author so their own post doesn't show as unread
+	var readEntityID uuid.UUID
+	if req.ParentID == nil {
+		readEntityID = postID
+	} else {
+		// Find the root post ID for this thread
+		err = tx.QueryRow(r.Context(), `
+			WITH RECURSIVE thread_root AS (
+				SELECT id, parent_id FROM posts WHERE id = $1
+				UNION ALL
+				SELECT p.id, p.parent_id FROM posts p JOIN thread_root tr ON tr.parent_id = p.id
+			)
+			SELECT id FROM thread_root WHERE parent_id IS NULL`, req.ParentID).Scan(&readEntityID)
+		if err != nil {
+			// If we can't find the root for some reason, just skip read marker update
+			log.Printf("Failed to find root for read marker: %v\n", err)
+		}
+	}
+
+	if readEntityID != uuid.Nil {
+		_, _ = tx.Exec(r.Context(),
+			`INSERT INTO read_markers (user_id, entity_id, last_read_at)
+			 VALUES ($1, $2, NOW())
+			 ON CONFLICT (user_id, entity_id) DO UPDATE SET last_read_at = NOW()`, userID, readEntityID)
+	}
+
 	if err := tx.Commit(r.Context()); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -392,14 +452,14 @@ func (h *Handler) ListThreads(w http.ResponseWriter, r *http.Request) {
 	query := `
 		WITH RECURSIVE descendants AS (
 			-- Find direct children of root posts in this circle
-			SELECT p.id, p.parent_id, p.id as root_id, p.created_at
+			SELECT p.id, p.parent_id, p.id as root_id, p.author_id, p.created_at
 			FROM posts p
 			WHERE p.circle_id = $1 AND p.parent_id IS NULL
 
 			UNION ALL
 
 			-- Find their children recursively
-			SELECT p.id, p.parent_id, d.root_id, p.created_at
+			SELECT p.id, p.parent_id, d.root_id, p.author_id, p.created_at
 			FROM posts p
 			JOIN descendants d ON p.parent_id = d.id
 		),
@@ -419,7 +479,7 @@ func (h *Handler) ListThreads(w http.ResponseWriter, r *http.Request) {
 				COUNT(*) as count
 			FROM descendants d
 			LEFT JOIN read_markers rm ON rm.entity_id = d.root_id AND rm.user_id = $2
-			WHERE d.id != d.root_id -- only count replies
+			WHERE d.author_id != $2
 			AND d.created_at > COALESCE(rm.last_read_at, '1970-01-01')
 			GROUP BY d.root_id
 		)
@@ -477,6 +537,7 @@ func (h *Handler) ListThreads(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetThread(w http.ResponseWriter, r *http.Request) {
 	postIDStr := chi.URLParam(r, "postID")
 	postID, _ := uuid.Parse(postIDStr)
+	userID := r.Context().Value("user_id").(uuid.UUID)
 
 	// Fetch the entire thread tree using a recursive CTE
 	rows, err := h.DB.Query(r.Context(),
@@ -493,10 +554,12 @@ func (h *Handler) GetThread(w http.ResponseWriter, r *http.Request) {
 			FROM posts p
 			JOIN thread_tree tt ON p.parent_id = tt.id
 		)
-		SELECT tt.id, tt.author_id, u.username, tt.parent_id, COALESCE(tt.title, ''), tt.content, tt.created_at, tt.updated_at, tt.depth
+		SELECT tt.id, tt.author_id, u.username, tt.parent_id, COALESCE(tt.title, ''), tt.content, tt.created_at, tt.updated_at, tt.depth,
+		       rm.last_read_at
 		FROM thread_tree tt
 		JOIN users u ON tt.author_id = u.id
-		ORDER BY tt.created_at ASC`, postID)
+		LEFT JOIN read_markers rm ON rm.entity_id = $1 AND rm.user_id = $2
+		ORDER BY tt.created_at ASC`, postID, userID)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -509,31 +572,26 @@ func (h *Handler) GetThread(w http.ResponseWriter, r *http.Request) {
 		AuthorID   uuid.UUID  `json:"author_id"`
 		AuthorName string     `json:"author_name"`
 		ParentID   *uuid.UUID `json:"parent_id"`
-		Title      string     `json:"title,omitempty"`
+		Title      string     `json:"title"`
 		Content    string     `json:"content"`
 		CreatedAt  time.Time  `json:"created_at"`
-		UpdatedAt  *time.Time `json:"updated_at,omitempty"`
+		UpdatedAt  *time.Time `json:"updated_at"`
 		Depth      int        `json:"depth"`
+		LastReadAt *time.Time `json:"last_read_at"`
 	}
 
-	var allPosts []postNode = []postNode{}
+	var posts []postNode = []postNode{}
 	for rows.Next() {
 		var p postNode
-		err := rows.Scan(&p.ID, &p.AuthorID, &p.AuthorName, &p.ParentID, &p.Title, &p.Content, &p.CreatedAt, &p.UpdatedAt, &p.Depth)
+		err := rows.Scan(&p.ID, &p.AuthorID, &p.AuthorName, &p.ParentID, &p.Title, &p.Content, &p.CreatedAt, &p.UpdatedAt, &p.Depth, &p.LastReadAt)
 		if err != nil {
-			log.Printf("GetThread scan error: %v\n", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		allPosts = append(allPosts, p)
+		posts = append(posts, p)
 	}
 
-	if len(allPosts) == 0 {
-		http.Error(w, "Post not found", http.StatusNotFound)
-		return
-	}
-
-	json.NewEncoder(w).Encode(allPosts)
+	json.NewEncoder(w).Encode(posts)
 }
 
 func (h *Handler) UpdateReadMarker(w http.ResponseWriter, r *http.Request) {

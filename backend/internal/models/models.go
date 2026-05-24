@@ -39,4 +39,6 @@ type Circle struct {
 	ChatRetentionDays  int        `json:"chat_retention_days"`
 	ChatRetentionCount int        `json:"chat_retention_count"`
 	CreatedAt          time.Time  `json:"created_at"`
+	LastReadAt         *time.Time `json:"last_read_at,omitempty"`
+	UnreadCount        int        `json:"unread_count"`
 }

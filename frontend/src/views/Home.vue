@@ -9,17 +9,32 @@
 				:key="circle.id"
 				@click="selectCircle(circle)"
 				:class="[
-					'w-12 h-12 rounded-3xl cursor-pointer flex items-center justify-center font-bold text-xl transition-all hover:rounded-xl',
+					'w-12 h-12 rounded-3xl cursor-pointer flex items-center justify-center font-bold text-xl transition-all hover:rounded-xl relative group',
 					activeCircle?.id === circle.id
 						? 'bg-purple-600 rounded-xl'
 						: 'bg-gray-800 hover:bg-purple-500',
 				]"
+				:title="circle.name"
 			>
 				{{
 					circle.name && circle.name.length > 0
 						? circle.name[0].toUpperCase()
 						: "?"
 				}}
+				<!-- Unread Badge -->
+				<div
+					v-if="circle.unread_count > 0"
+					class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-gray-950 font-bold px-1"
+				>
+					{{ circle.unread_count > 99 ? "99+" : circle.unread_count }}
+				</div>
+
+				<!-- Tooltip -->
+				<div
+					class="absolute left-16 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 border border-gray-700 shadow-xl"
+				>
+					{{ circle.name }}
+				</div>
 			</div>
 			<div
 				@click="showCreateModal = true"
@@ -83,9 +98,7 @@
 			<header
 				class="h-12 border-b border-gray-800 flex items-center px-4 justify-between bg-gray-900"
 			>
-				<h2 class="font-bold text-lg">
-					{{ activeCircle?.name || "Bulletin" }}
-				</h2>
+				<h2 class="font-bold text-lg text-gray-400">{{ siteName }}</h2>
 				<div class="flex items-center space-y-0 space-x-4">
 					<router-link
 						to="/settings"
@@ -126,6 +139,8 @@ const circleStore = useCircleStore();
 const toast = useToastStore();
 const router = useRouter();
 const route = useRoute();
+
+const siteName = import.meta.env.VITE_SITE_NAME || "Bulletin";
 
 const showCreateModal = ref(false);
 const newCircle = ref({

@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { useCircleStore } from "../stores/circles";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
+import { renderMarkdown } from "../utils/markdown";
 
 const props = defineProps({
 	node: Object,
@@ -21,9 +22,17 @@ const canEdit = computed(() => {
 	);
 });
 const showReplyBox = ref(false);
+const showReplyPreview = ref(false);
 const replyContent = ref("");
 const isEditing = ref(false);
+const showEditPreview = ref(false);
 const editContent = ref("");
+
+const isUnread = computed(() => {
+	if (props.node.author_id === auth.user?.id) return false;
+	if (!props.node.last_read_at) return true;
+	return new Date(props.node.created_at) > new Date(props.node.last_read_at);
+});
 
 const formatDate = (dateStr) => {
 	return new Date(dateStr).toLocaleString();
@@ -79,10 +88,11 @@ const submitEdit = async () => {
 		<!-- Post Content -->
 		<div
 			:class="[
-				'p-4 rounded-lg border transition-colors',
+				'p-4 rounded-lg border transition-all duration-500',
 				node.parent_id
 					? 'bg-gray-800/50 border-gray-700'
 					: 'bg-gray-800 border-purple-900/50 p-6',
+				isUnread ? 'border-l-4 border-l-purple-500 bg-purple-500/5' : '',
 			]"
 		>
 			<div class="flex items-center justify-between mb-2">
@@ -123,7 +133,24 @@ const submitEdit = async () => {
 			<h2 v-if="node.title" class="text-xl font-bold mb-3">{{ node.title }}</h2>
 
 			<div v-if="isEditing" class="space-y-2">
+				<div class="flex items-center justify-between">
+					<label class="text-[10px] text-gray-500 font-bold uppercase"
+						>Editing Post</label
+					>
+					<button
+						@click="showEditPreview = !showEditPreview"
+						class="text-[10px] uppercase font-bold text-purple-400 hover:text-purple-300"
+					>
+						{{ showEditPreview ? "Edit Text" : "Show Preview" }}
+					</button>
+				</div>
+				<div
+					v-if="showEditPreview"
+					class="w-full bg-gray-900 p-3 rounded-lg border border-gray-700 markdown-content text-sm min-h-[100px]"
+					v-html="renderMarkdown(editContent)"
+				></div>
 				<textarea
+					v-else
 					v-model="editContent"
 					class="w-full bg-gray-700 p-2 rounded border border-gray-600 focus:outline-none text-sm"
 					rows="4"
@@ -145,18 +172,34 @@ const submitEdit = async () => {
 			</div>
 			<div
 				v-else
-				class="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed"
-			>
-				{{ node.content }}
-			</div>
+				class="markdown-content text-gray-300 text-sm leading-relaxed"
+				v-html="renderMarkdown(node.content)"
+			></div>
 
 			<!-- Nested Reply Box -->
 			<div v-if="showReplyBox" class="mt-4 pt-4 border-t border-gray-700">
+				<div class="flex items-center justify-between mb-2">
+					<label class="text-[10px] text-gray-500 font-bold uppercase"
+						>Reply</label
+					>
+					<button
+						@click="showReplyPreview = !showReplyPreview"
+						class="text-[10px] uppercase font-bold text-purple-400 hover:text-purple-300"
+					>
+						{{ showReplyPreview ? "Edit Text" : "Show Preview" }}
+					</button>
+				</div>
+				<div
+					v-if="showReplyPreview"
+					class="w-full bg-gray-900 p-3 rounded-lg border border-gray-700 markdown-content text-sm min-h-[120px]"
+					v-html="renderMarkdown(replyContent)"
+				></div>
 				<textarea
+					v-else
 					v-model="replyContent"
 					placeholder="Write a reply..."
 					class="w-full bg-gray-700 p-2 rounded border border-gray-600 focus:outline-none text-sm"
-					rows="2"
+					rows="5"
 				></textarea>
 				<div class="flex justify-end mt-2">
 					<button

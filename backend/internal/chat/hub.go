@@ -223,6 +223,13 @@ func (c *Client) readPump() {
 		chatMsg.Content = msg.Content
 		chatMsg.Type = "chat"
 
+		// Update read marker for the sender
+		_, _ = c.hub.DB.Exec(context.Background(),
+			`INSERT INTO read_markers (user_id, entity_id, last_read_at)
+			 VALUES ($1, $2, NOW())
+			 ON CONFLICT (user_id, entity_id) DO UPDATE SET last_read_at = NOW()`,
+			c.userID, c.circleID)
+
 		c.hub.broadcast <- chatMsg
 	}
 }
