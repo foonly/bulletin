@@ -1,0 +1,28 @@
+[Unit]
+Description=Bulletin API Service
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=simple
+User=bulletin
+Group=bulletin
+WorkingDirectory=/opt/bulletin/backend
+ExecStart=/usr/local/bin/bulletin-api
+Restart=always
+RestartSec=5
+
+# Environment variables
+Environment=PORT=8080
+Environment=DATABASE_URL=postgres://bulletin:bulletin_password@localhost:5432/bulletin?sslmode=disable
+Environment=SMTP_HOST=localhost
+Environment=SMTP_PORT=1025
+Environment=SMTP_FROM=no-reply@bulletin.local
+Environment=SMTP_USER=
+Environment=SMTP_PASS=
+Environment=SMTP_USE_TLS=false
+
+# Optional: Load more environment variables from a file
+# EnvironmentFile=/etc/bulletin/api.env
+
+[Install]
+WantedBy=multi-user.target

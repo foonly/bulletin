@@ -19,6 +19,16 @@ setup:
 	@echo "Setting up frontend..."
 	cd frontend && pnpm install
 
+build: build-backend build-frontend
+
+build-backend:
+	@echo "Building backend binary..."
+	cd backend && go build -o bin/bulletin-api cmd/api/*.go
+
+build-frontend:
+	@echo "Building frontend assets..."
+	cd frontend && npm run build
+
 infra:
 	docker-compose up -d
 

@@ -62,7 +62,20 @@ func main() {
 	if smtpHost == "" {
 		smtpHost = "localhost"
 	}
-	appMailer := mailer.NewMailer(smtpHost, 1025, "no-reply@bulletin.local")
+	smtpPortStr := os.Getenv("SMTP_PORT")
+	smtpPort := 1025
+	if smtpPortStr != "" {
+		fmt.Sscanf(smtpPortStr, "%d", &smtpPort)
+	}
+	smtpFrom := os.Getenv("SMTP_FROM")
+	if smtpFrom == "" {
+		smtpFrom = "no-reply@bulletin.local"
+	}
+	smtpUser := os.Getenv("SMTP_USER")
+	smtpPass := os.Getenv("SMTP_PASS")
+	smtpUseTLS := os.Getenv("SMTP_USE_TLS") == "true"
+
+	appMailer := mailer.NewMailer(smtpHost, smtpPort, smtpFrom, smtpUser, smtpPass, smtpUseTLS)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
