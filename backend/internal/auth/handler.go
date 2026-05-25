@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -397,7 +398,11 @@ func (h *Handler) RequestPasswordReset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send email
-	resetURL := fmt.Sprintf("http://localhost:5173/reset-password?token=%s", token)
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:5173"
+	}
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", frontendURL, token)
 	subject := "Password Reset Request"
 	body := fmt.Sprintf("You requested a password reset. Click the link below to set a new password:\n\n%s\n\nThis link will expire in 1 hour.", resetURL)
 
@@ -610,7 +615,11 @@ func (h *Handler) RequestEmailVerification(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Send email
-	verifyURL := fmt.Sprintf("http://localhost:5173/verify-email?token=%s", token)
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:5173"
+	}
+	verifyURL := fmt.Sprintf("%s/verify-email?token=%s", frontendURL, token)
 	subject := "Verify your email address"
 	body := fmt.Sprintf("Please click the link below to verify your email address:\n\n%s\n\nThis link will expire in 24 hours.", verifyURL)
 

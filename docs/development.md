@@ -50,6 +50,7 @@ To achieve the fastest feedback loop, we run infrastructure in Docker and applic
 - `SMTP_USER`: SMTP authentication username (optional).
 - `SMTP_PASS`: SMTP authentication password (optional).
 - `SMTP_USE_TLS`: Set to `true` for implicit TLS (usually port 465). Standard STARTTLS (port 587) is supported automatically.
+- `FRONTEND_URL`: The base URL of the frontend (e.g., `https://bulletin.example.com`).
 
 ## First-time Registration
 
