@@ -24,9 +24,12 @@ To achieve the fastest feedback loop, we run infrastructure in Docker and applic
    make infra
    ```
 
-   _Starts Postgres and Redis in the background._
+   _Starts Postgres, Redis, and Mailhog in the background._
 
-3. **Run Application**:
+3. **Email Testing**:
+   Access the Mailhog Web UI at `http://localhost:8025` to view all outgoing system emails (resets, verifications).
+
+4. **Run Application**:
    Open two terminals:
    - Terminal 1: `make dev-backend` (Live-reloads on `.go` or `.sql` change)
    - Terminal 2: `make dev-frontend` (Vite HMR)
@@ -39,9 +42,15 @@ The system bootstraps an initial circle and an invite code `welcome`.
 2. Use invite code `welcome`.
 3. This user becomes the first `admin`.
 
+## Environment Variables
+
+The frontend supports site-wide branding via `.env`:
+
+- `VITE_SITE_NAME`: The name displayed in headers and browser tabs.
+
 ## Database Management
 
-- **Migrations**: Add new `.up.sql` files to the `migrations` folder. They are applied automatically when the backend starts.
+- **Migrations**: Add new `.up.sql` files to the `migrations` folder. They are tracked in `schema_migrations` and applied automatically when the backend starts.
 - **Reset**: To wipe everything and start fresh:
   ```bash
   docker-compose down -v

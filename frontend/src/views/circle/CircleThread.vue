@@ -52,6 +52,7 @@ const startReadTracking = (entityId) => {
 				thread.unread_count = 0;
 			}
 			await circleStore.fetchThreads(props.id);
+			await circleStore.fetchTags(props.id);
 		} catch (err) {
 			console.error("Failed to mark as read", err);
 		}

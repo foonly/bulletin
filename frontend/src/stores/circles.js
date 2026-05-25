@@ -101,5 +101,61 @@ export const useCircleStore = defineStore("circles", {
 		addChatMessage(msg) {
 			this.chatMessages.push(msg);
 		},
+		incrementUnreadChat(circleId) {
+			const circle = this.circles.find((c) => c.id === circleId);
+			if (circle) {
+				circle.unread_chat_count++;
+				circle.unread_count++;
+			}
+		},
+		async refreshUnreadCounts() {
+			const res = await axios.get("/api/circles");
+			const newCircles = res.data;
+
+			// Intelligently update existing objects to maintain reactivity
+			newCircles.forEach((newCircle) => {
+				const existing = this.circles.find((c) => c.id === newCircle.id);
+				if (existing) {
+					existing.unread_count = newCircle.unread_count;
+					existing.unread_chat_count = newCircle.unread_chat_count;
+					existing.unread_post_count = newCircle.unread_post_count;
+					existing.member_count = newCircle.member_count;
+					existing.last_post_title = newCircle.last_post_title;
+					existing.last_post_at = newCircle.last_post_at;
+					existing.last_read_at = newCircle.last_read_at;
+
+					// Also update activeCircle if it matches
+					if (this.activeCircle && this.activeCircle.id === existing.id) {
+						this.activeCircle.unread_count = existing.unread_count;
+						this.activeCircle.unread_chat_count = existing.unread_chat_count;
+						this.activeCircle.unread_post_count = existing.unread_post_count;
+						this.activeCircle.last_read_at = existing.last_read_at;
+					}
+				}
+			});
+
+			// If lengths differ, just replace the whole array
+			if (newCircles.length !== this.circles.length) {
+				this.circles = newCircles;
+			}
+		},
+		async refreshActiveTags() {
+			if (!this.activeCircle) return;
+			const res = await axios.get(`/api/circles/${this.activeCircle.id}/tags`);
+			const newTags = res.data;
+
+			newTags.forEach((newTag) => {
+				const existing = this.tags.find((t) => t.id === newTag.id);
+				if (existing) {
+					existing.unread_count = newTag.unread_count;
+					existing.use_count = newTag.use_count;
+					existing.is_pinned = newTag.is_pinned;
+				}
+			});
+
+			if (newTags.length !== this.tags.length) {
+				this.tags = newTags;
+			}
+		},
 	},
 });

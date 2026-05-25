@@ -1027,32 +1027,55 @@ func (h *Handler) DeleteMember(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListTags(w http.ResponseWriter, r *http.Request) {
 	circleIDStr := chi.URLParam(r, "circleID")
 	circleID, _ := uuid.Parse(circleIDStr)
+	userID := r.Context().Value("user_id").(uuid.UUID)
 
 	rows, err := h.DB.Query(r.Context(),
-		`SELECT t.id, t.name, t.is_pinned, COUNT(pt.post_id) as use_count
-		 FROM tags t
-		 LEFT JOIN post_tags pt ON t.id = pt.tag_id
-		 WHERE t.circle_id = $1
-		 GROUP BY t.id, t.name, t.is_pinned
-		 ORDER BY t.is_pinned DESC, use_count DESC, t.name ASC`, circleID)
+		`WITH RECURSIVE post_tree AS (
+			SELECT id, id as root_id, author_id, created_at
+			FROM posts
+			WHERE circle_id = $1 AND parent_id IS NULL
+			UNION ALL
+			SELECT p.id, pt.root_id, p.author_id, p.created_at
+			FROM posts p
+			JOIN post_tree pt ON p.parent_id = pt.id
+		),
+		unread_posts AS (
+			SELECT pt.id, pt.root_id
+			FROM post_tree pt
+			LEFT JOIN read_markers rm ON rm.entity_id = pt.root_id AND rm.user_id = $2
+			WHERE pt.author_id != $2
+			AND pt.created_at > COALESCE(rm.last_read_at, '1970-01-01')
+		)
+		SELECT
+			t.id, t.name, t.is_pinned,
+			COUNT(DISTINCT pt.post_id) as use_count,
+			COUNT(DISTINCT up.id) as unread_count
+		FROM tags t
+		LEFT JOIN post_tags pt ON t.id = pt.tag_id
+		LEFT JOIN unread_posts up ON up.root_id = pt.post_id
+		WHERE t.circle_id = $1
+		GROUP BY t.id, t.name, t.is_pinned
+		ORDER BY t.is_pinned DESC, use_count DESC, t.name ASC`, circleID, userID)
 
 	if err != nil {
+		log.Printf("ListTags error: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
 
 	type tagResponse struct {
-		ID       uuid.UUID `json:"id"`
-		Name     string    `json:"name"`
-		IsPinned bool      `json:"is_pinned"`
-		UseCount int       `json:"use_count"`
+		ID          uuid.UUID `json:"id"`
+		Name        string    `json:"name"`
+		IsPinned    bool      `json:"is_pinned"`
+		UseCount    int       `json:"use_count"`
+		UnreadCount int       `json:"unread_count"`
 	}
 
 	var tags []tagResponse = []tagResponse{}
 	for rows.Next() {
 		var t tagResponse
-		err := rows.Scan(&t.ID, &t.Name, &t.IsPinned, &t.UseCount)
+		err := rows.Scan(&t.ID, &t.Name, &t.IsPinned, &t.UseCount, &t.UnreadCount)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

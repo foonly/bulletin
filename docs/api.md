@@ -6,13 +6,38 @@ All API requests are prefixed with `/api`. Authenticated endpoints require a val
 
 ### `POST /auth/register`
 
-- **Body**: `{ "username": "...", "password": "...", "invite_code": "..." }`
+- **Body**: `{ "username": "...", "email": "...", "password": "...", "invite_code": "..." }`
 - **Role**: Public. Creates user and joins them to the invite's target circle.
 
 ### `POST /auth/login`
 
 - **Body**: `{ "username": "...", "password": "..." }`
+- **Response**: `{ "status": "success" | "mfa_required" }`
 - **Role**: Public. Establishes a session.
+
+### `POST /auth/login-totp`
+
+- **Body**: `{ "code": "6-digit-string" }`
+- **Role**: MFA-Pending. Verifies TOTP code and upgrades session.
+
+### `POST /auth/request-reset`
+
+- **Body**: `{ "email": "..." }`
+- **Role**: Public. Sends a password reset email.
+
+### `POST /auth/reset-password`
+
+- **Body**: `{ "token": "...", "password": "..." }`
+- **Role**: Public. Sets a new password using a reset token.
+
+### `POST /auth/request-verification`
+
+- **Role**: Authenticated. Sends an email verification link.
+
+### `POST /auth/verify-email`
+
+- **Body**: `{ "token": "..." }`
+- **Role**: Public. Marks user email as verified.
 
 ### `GET /auth/me`
 
@@ -20,8 +45,22 @@ All API requests are prefixed with `/api`. Authenticated endpoints require a val
 
 ### `PUT /auth/me`
 
-- **Body**: `{ "username": "?", "password": "?" }`
-- **Role**: Authenticated. Updates username or password.
+- **Body**: `{ "username": "?", "email": "?", "old_password": "?", "password": "?" }`
+- **Role**: Authenticated. Updates user profile. Changing password requires `old_password`.
+
+### `POST /auth/totp/setup`
+
+- **Role**: Authenticated. Generates a new TOTP secret.
+
+### `POST /auth/totp/enable`
+
+- **Body**: `{ "code": "..." }`
+- **Role**: Authenticated. Verifies code and enables MFA.
+
+### `POST /auth/totp/disable`
+
+- **Body**: `{ "password": "..." }`
+- **Role**: Authenticated. Disables MFA.
 
 ## Circles (Global)
 
@@ -56,6 +95,15 @@ _All endpoints below are protected by Membership Middleware._
 
 - **Body**: `{ "content": "..." }`
 - **Role**: Author or Admin.
+
+### `DELETE /threads/{postID}`
+
+- **Role**: Author or Admin. Hard-deletes threads; soft-deletes replies.
+
+### `GET /search`
+
+- **Query**: `?q=query`
+- **Role**: Member. Searches titles and content within the circle.
 
 ### `POST /posts`
 

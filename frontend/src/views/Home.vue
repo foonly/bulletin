@@ -234,7 +234,7 @@
 </template>
 
 <script setup>
-import { onMounted, computed, watch, ref } from "vue";
+import { onMounted, onUnmounted, computed, watch, ref } from "vue";
 import { useAuthStore } from "../stores/auth";
 import { useCircleStore } from "../stores/circles";
 import { useToastStore } from "../stores/toast";
@@ -281,6 +281,7 @@ const syncActiveCircle = () => {
 };
 
 const loadingCircles = ref(false);
+let pollInterval = null;
 
 onMounted(async () => {
 	if (circleStore.circles.length === 0 && !loadingCircles.value) {
@@ -292,6 +293,20 @@ onMounted(async () => {
 		}
 	}
 	syncActiveCircle();
+
+	// Background polling for unread counts (every 15 seconds)
+	pollInterval = setInterval(() => {
+		if (auth.user) {
+			circleStore.refreshUnreadCounts();
+			if (circleStore.activeCircle) {
+				circleStore.refreshActiveTags();
+			}
+		}
+	}, 15000);
+});
+
+onUnmounted(() => {
+	if (pollInterval) clearInterval(pollInterval);
 });
 
 watch(() => route.params.id, syncActiveCircle);

@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, watch } from "vue";
+import { onMounted, watch, computed } from "vue";
 import { useCircleStore } from "../../stores/circles";
 import { useRouter, useRoute } from "vue-router";
 import { stripMarkdown } from "../../utils/markdown";
@@ -15,7 +15,10 @@ const formatDate = (dateStr) => {
 };
 
 const openThread = (postId) => {
-	router.push({ name: "circle-thread", params: { id: props.id, threadId: postId } });
+	router.push({
+		name: "circle-thread",
+		params: { id: props.id, threadId: postId },
+	});
 };
 
 const filterByTag = (tagName) => {
@@ -25,6 +28,14 @@ const filterByTag = (tagName) => {
 		query: tagName ? { tag: tagName } : {},
 	});
 };
+
+const filteredThreads = computed(() => {
+	if (route.query.tag) {
+		return circleStore.threads;
+	}
+	// On dashboard (no tag), only show threads with unread posts
+	return circleStore.threads.filter((t) => t.unread_count > 0);
+});
 
 const loadThreads = () => {
 	circleStore.fetchThreads(props.id, route.query.tag || "");
@@ -37,8 +48,19 @@ watch(() => props.id, loadThreads);
 
 <template>
 	<div class="space-y-4">
+		<div v-if="!route.query.tag" class="mb-6">
+			<h1 class="text-2xl font-bold">Circle Dashboard</h1>
+			<p class="text-sm text-gray-500">Showing threads with unread activity.</p>
+		</div>
+		<div v-else class="mb-6">
+			<h1 class="text-2xl font-bold">#{{ route.query.tag }}</h1>
+			<p class="text-sm text-gray-500">
+				Showing all threads tagged with #{{ route.query.tag }}.
+			</p>
+		</div>
+
 		<div
-			v-for="thread in circleStore.threads"
+			v-for="thread in filteredThreads"
 			:key="thread.id"
 			@click="openThread(thread.id)"
 			:class="[
@@ -53,9 +75,7 @@ watch(() => props.id, loadThreads);
 					<span class="font-bold text-purple-400">{{
 						thread.author_name
 					}}</span>
-					<span class="text-gray-500">{{
-						formatDate(thread.created_at)
-					}}</span>
+					<span class="text-gray-500">{{ formatDate(thread.created_at) }}</span>
 				</div>
 				<div
 					v-if="thread.unread_count > 0"
@@ -71,9 +91,11 @@ watch(() => props.id, loadThreads);
 					:key="tag"
 					@click.stop="filterByTag(tag)"
 					:class="[
-                        'text-[10px] px-1.5 py-0.5 rounded transition-colors cursor-pointer',
-                        route.query.tag === tag ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-purple-600 hover:text-white'
-                    ]"
+						'text-[10px] px-1.5 py-0.5 rounded transition-colors cursor-pointer',
+						route.query.tag === tag
+							? 'bg-purple-600 text-white'
+							: 'bg-gray-700 text-gray-300 hover:bg-purple-600 hover:text-white',
+					]"
 				>
 					#{{ tag }}
 				</span>
@@ -100,9 +122,19 @@ watch(() => props.id, loadThreads);
 				</div>
 			</div>
 		</div>
-        <div v-if="circleStore.threads.length === 0" class="text-center py-20 text-gray-500">
-            <div class="text-4xl mb-4">📭</div>
-            <p>No threads found in this circle.</p>
-        </div>
+		<div
+			v-if="filteredThreads.length === 0"
+			class="text-center py-20 text-gray-500 bg-gray-800/20 rounded-xl border border-dashed border-gray-700"
+		>
+			<template v-if="!route.query.tag">
+				<div class="text-4xl mb-4">✅</div>
+				<p class="font-bold text-gray-300">You're all caught up!</p>
+				<p class="text-sm mt-1">No unread threads in this circle.</p>
+			</template>
+			<template v-else>
+				<div class="text-4xl mb-4">📭</div>
+				<p>No threads found with this tag.</p>
+			</template>
+		</div>
 	</div>
 </template>

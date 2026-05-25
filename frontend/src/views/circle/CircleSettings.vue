@@ -3,11 +3,14 @@ import { ref, onMounted, watch, computed } from "vue";
 import { useCircleStore } from "../../stores/circles";
 import { useAuthStore } from "../../stores/auth";
 import { useToastStore } from "../../stores/toast";
+import InviteModal from "../../components/InviteModal.vue";
 
 const props = defineProps(["id", "members"]);
 const circleStore = useCircleStore();
 const auth = useAuthStore();
 const toast = useToastStore();
+
+const showInviteModal = ref(false);
 
 const isAdmin = computed(() => {
 	return circleStore.activeCircle?.role === "admin";
@@ -20,13 +23,6 @@ const settings = ref({
 	invite_min_role: "standard",
 	chat_retention_days: 14,
 	chat_retention_count: 50,
-});
-
-const inviteForm = ref({
-	code: "",
-	role_to_grant: "standard",
-	max_uses: null,
-	expires_in_hrs: null,
 });
 
 const adminNewTagName = ref("");
@@ -49,30 +45,24 @@ const saveSettings = async () => {
 	}
 };
 
-const generateInvite = async () => {
-	try {
-		await circleStore.createInvite(props.id, {
-			role_to_grant: inviteForm.value.role_to_grant,
-			max_uses: inviteForm.value.max_uses
-				? parseInt(inviteForm.value.max_uses)
-				: null,
-			expires_in_hrs: inviteForm.value.expires_in_hrs
-				? parseInt(inviteForm.value.expires_in_hrs)
-				: null,
-		});
-		toast.success("Invite link generated!");
-		await circleStore.fetchInvites(props.id);
-	} catch (err) {
-		toast.error("Failed to generate invite");
-	}
-};
-
 const revokeInvite = async (inviteId) => {
 	try {
 		await circleStore.deleteInvite(props.id, inviteId);
-		toast.success("Invite revoked");
+		toast.success("Invite removed");
 	} catch (err) {
-		toast.error("Failed to revoke invite");
+		toast.error("Failed to remove invite");
+	}
+};
+
+const clearAllInactive = async () => {
+	if (!confirm("Clear all inactive and depleted invites?")) return;
+	try {
+		for (const invite of inactiveInvites.value) {
+			await circleStore.deleteInvite(props.id, invite.id);
+		}
+		toast.success("Inactive invites cleared");
+	} catch (err) {
+		toast.error("Failed to clear some invites");
 	}
 };
 
@@ -118,6 +108,22 @@ const kickMember = async (userId) => {
 		toast.error(err.response?.data || "Failed to kick member");
 	}
 };
+
+const activeInvites = computed(() => {
+	return circleStore.invites.filter((i) => {
+		const notExpired = !i.expires_at || new Date(i.expires_at) > new Date();
+		const notDepleted = !i.max_uses || i.used_count < i.max_uses;
+		return notExpired && notDepleted;
+	});
+});
+
+const inactiveInvites = computed(() => {
+	return circleStore.invites.filter((i) => {
+		const expired = i.expires_at && new Date(i.expires_at) <= new Date();
+		const depleted = i.max_uses && i.used_count >= i.max_uses;
+		return expired || depleted;
+	});
+});
 
 const formatDate = (dateStr) => {
 	return new Date(dateStr).toLocaleString();
@@ -181,52 +187,22 @@ const formatDate = (dateStr) => {
 
 		<!-- Invites -->
 		<section class="bg-gray-800 p-6 rounded-lg space-y-4">
-			<h3 class="text-xl font-bold border-b border-gray-700 pb-2">Invites</h3>
-			<div class="grid grid-cols-2 gap-4 text-sm">
-				<div class="flex flex-col">
-					<label class="text-xs text-gray-400 mb-1">Role to Grant</label>
-					<select
-						v-model="inviteForm.role_to_grant"
-						class="bg-gray-700 p-2 rounded focus:outline-none"
-					>
-						<option value="guest">Guest</option>
-						<option value="standard">Standard</option>
-						<option value="mod">Moderator</option>
-						<option value="admin">Admin</option>
-					</select>
-				</div>
-				<div class="flex flex-col">
-					<label class="text-xs text-gray-400 mb-1">Max Uses (optional)</label>
-					<input
-						v-model="inviteForm.max_uses"
-						type="number"
-						class="bg-gray-700 p-2 rounded focus:outline-none"
-					/>
-				</div>
-				<div class="flex flex-col">
-					<label class="text-xs text-gray-400 mb-1"
-						>Expires in Hours (optional)</label
-					>
-					<input
-						v-model="inviteForm.expires_in_hrs"
-						type="number"
-						class="bg-gray-700 p-2 rounded focus:outline-none"
-					/>
-				</div>
-			</div>
-			<div class="flex justify-end">
+			<div
+				class="flex items-center justify-between border-b border-gray-700 pb-2"
+			>
+				<h3 class="text-xl font-bold">Invites</h3>
 				<button
-					@click="generateInvite"
-					class="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded font-bold transition"
+					@click="showInviteModal = true"
+					class="bg-purple-600 hover:bg-purple-700 px-4 py-1.5 rounded font-bold transition text-xs"
 				>
-					Generate Invite
+					+ New Invite
 				</button>
 			</div>
 
-			<div v-if="circleStore.invites.length > 0" class="mt-6 space-y-3">
+			<div v-if="activeInvites.length > 0" class="mt-6 space-y-3">
 				<h4 class="text-sm font-bold text-gray-400">Active Invites</h4>
 				<div
-					v-for="invite in circleStore.invites"
+					v-for="invite in activeInvites"
 					:key="invite.id"
 					class="flex items-center justify-between bg-gray-900 p-3 rounded border border-gray-700"
 				>
@@ -252,6 +228,55 @@ const formatDate = (dateStr) => {
 						class="text-xs text-red-400 hover:underline"
 					>
 						Revoke
+					</button>
+				</div>
+			</div>
+
+			<div v-if="inactiveInvites.length > 0" class="mt-6 space-y-3 opacity-60">
+				<div class="flex items-center justify-between">
+					<h4 class="text-sm font-bold text-gray-500">
+						Inactive/Depleted Invites
+					</h4>
+					<button
+						@click="clearAllInactive"
+						class="text-[10px] uppercase font-bold text-gray-600 hover:text-red-400 transition-colors"
+					>
+						Clear All
+					</button>
+				</div>
+				<div
+					v-for="invite in inactiveInvites"
+					:key="invite.id"
+					class="flex items-center justify-between bg-gray-950 p-3 rounded border border-gray-800"
+				>
+					<div class="space-y-1">
+						<div class="flex items-center space-x-2">
+							<code
+								class="bg-gray-800 text-gray-500 px-2 py-0.5 rounded font-mono"
+								>{{ invite.code }}</code
+							>
+							<span class="text-xs text-gray-600"
+								>grants {{ invite.role_to_grant }} • Issued by
+								{{ invite.created_by }}</span
+							>
+						</div>
+						<div class="text-[10px] text-gray-600">
+							Uses: {{ invite.used_count }} / {{ invite.max_uses || "∞" }} •
+							Status:
+							<span class="text-red-900/80 font-bold uppercase">
+								{{
+									invite.max_uses && invite.used_count >= invite.max_uses
+										? "Depleted"
+										: "Expired"
+								}}
+							</span>
+						</div>
+					</div>
+					<button
+						@click="revokeInvite(invite.id)"
+						class="text-xs text-gray-500 hover:text-red-400 hover:underline"
+					>
+						Clear
 					</button>
 				</div>
 			</div>
@@ -338,4 +363,11 @@ const formatDate = (dateStr) => {
 			</div>
 		</section>
 	</div>
+
+	<InviteModal
+		:show="showInviteModal"
+		:id="id"
+		@close="showInviteModal = false"
+		@created="circleStore.fetchInvites(id)"
+	/>
 </template>
