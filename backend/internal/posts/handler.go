@@ -615,6 +615,75 @@ func (h *Handler) GetThread(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(posts)
 }
 
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+	circleIDStr := chi.URLParam(r, "circleID")
+	circleID, _ := uuid.Parse(circleIDStr)
+	query := r.URL.Query().Get("q")
+
+	if query == "" {
+		json.NewEncoder(w).Encode([]interface{}{})
+		return
+	}
+
+	// Search for posts (threads or replies) matching the query
+	// We return them with their thread root ID so we can link to the thread
+	rows, err := h.DB.Query(r.Context(),
+		`WITH RECURSIVE post_roots AS (
+			SELECT id, id as root_id, parent_id
+			FROM posts
+			WHERE circle_id = $1 AND parent_id IS NULL
+			UNION ALL
+			SELECT p.id, pr.root_id, p.parent_id
+			FROM posts p
+			JOIN post_roots pr ON p.parent_id = pr.id
+		)
+		SELECT
+			p.id, p.author_id, u.username, p.parent_id, pr.root_id,
+			COALESCE(p.title, ''), p.content, p.created_at, p.updated_at, p.is_deleted
+		FROM posts p
+		JOIN users u ON p.author_id = u.id
+		JOIN post_roots pr ON p.id = pr.id
+		WHERE p.circle_id = $1
+		  AND p.is_deleted = FALSE
+		  AND (p.title ILIKE $2 OR p.content ILIKE $2)
+		ORDER BY p.created_at DESC
+		LIMIT 50`, circleID, "%"+query+"%")
+
+	if err != nil {
+		log.Printf("Search error: %v\n", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type searchResult struct {
+		ID         uuid.UUID  `json:"id"`
+		AuthorID   uuid.UUID  `json:"author_id"`
+		AuthorName string     `json:"author_name"`
+		ParentID   *uuid.UUID `json:"parent_id"`
+		RootID     uuid.UUID  `json:"root_id"`
+		Title      string     `json:"title"`
+		Content    string     `json:"content"`
+		CreatedAt  time.Time  `json:"created_at"`
+		UpdatedAt  *time.Time `json:"updated_at"`
+		IsDeleted  bool       `json:"is_deleted"`
+	}
+
+	var results []searchResult = []searchResult{}
+	for rows.Next() {
+		var res searchResult
+		err := rows.Scan(&res.ID, &res.AuthorID, &res.AuthorName, &res.ParentID, &res.RootID, &res.Title, &res.Content, &res.CreatedAt, &res.UpdatedAt, &res.IsDeleted)
+		if err != nil {
+			log.Printf("Search scan error: %v\n", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		results = append(results, res)
+	}
+
+	json.NewEncoder(w).Encode(results)
+}
+
 func (h *Handler) DeletePost(w http.ResponseWriter, r *http.Request) {
 	circleIDStr := chi.URLParam(r, "circleID")
 	circleID, _ := uuid.Parse(circleIDStr)

@@ -61,6 +61,19 @@
 					</div>
 
 					<div class="flex-1 overflow-y-auto p-4 space-y-6">
+						<!-- Search -->
+						<div class="px-2">
+							<div class="relative">
+								<span class="absolute left-3 top-2.5 text-gray-500">🔍</span>
+								<input
+									v-model="searchQuery"
+									@keyup.enter="handleSearch"
+									placeholder="Search posts..."
+									class="w-full bg-gray-900 border border-gray-800 rounded-lg py-2 pl-9 pr-4 text-xs focus:outline-none focus:border-purple-500 transition-colors"
+								/>
+							</div>
+						</div>
+
 						<!-- Main Nav -->
 						<div class="space-y-1">
 							<router-link
@@ -93,13 +106,16 @@
 								:to="{ name: 'circle-posts', params: { id: id } }"
 								:class="[
 									'w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors',
-									$route.name === 'circle-posts' && !$route.query.tag
+									($route.name === 'circle-posts' && !$route.query.tag) ||
+									$route.name === 'circle-search'
 										? 'bg-purple-600 text-white'
 										: 'text-gray-400 hover:bg-gray-800 hover:text-gray-200',
 								]"
 							>
 								<span class="text-lg">📰</span>
-								<span class="font-medium">Posts</span>
+								<span class="font-medium">{{
+									$route.name === "circle-search" ? "Search Results" : "Posts"
+								}}</span>
 							</router-link>
 						</div>
 
@@ -213,15 +229,28 @@ import { useCircleStore } from "../stores/circles";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import axios from "axios";
+import { useRouter } from "vue-router";
 
 const props = defineProps(["id"]);
 const circleStore = useCircleStore();
 const auth = useAuthStore();
 const toast = useToastStore();
+const router = useRouter();
 
 const members = ref([]);
 const onlineUserIds = ref(new Set());
 const error = ref(null);
+const searchQuery = ref("");
+
+const handleSearch = () => {
+	if (!searchQuery.value.trim()) return;
+	router.push({
+		name: "circle-search",
+		params: { id: props.id },
+		query: { q: searchQuery.value },
+	});
+	searchQuery.value = "";
+};
 
 let ws = null;
 

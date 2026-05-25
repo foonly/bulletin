@@ -106,6 +106,7 @@ func main() {
 				r.Use(postHandler.MembershipMiddleware)
 				r.Put("/", postHandler.UpdateCircle)
 				r.Get("/threads", postHandler.ListThreads)
+				r.Get("/search", postHandler.Search)
 				r.Get("/threads/{postID}", postHandler.GetThread)
 				r.Put("/threads/{postID}", postHandler.UpdatePost)
 				r.Delete("/threads/{postID}", postHandler.DeletePost)

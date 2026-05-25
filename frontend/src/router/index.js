@@ -13,6 +13,7 @@ import CircleChat from "../views/circle/CircleChat.vue";
 import CircleThread from "../views/circle/CircleThread.vue";
 import CircleNewThread from "../views/circle/CircleNewThread.vue";
 import CircleSettings from "../views/circle/CircleSettings.vue";
+import CircleSearch from "../views/circle/CircleSearch.vue";
 
 const routes = [
 	{ path: "/login", component: Login },
@@ -59,6 +60,12 @@ const routes = [
 						path: "chat",
 						name: "circle-chat",
 						component: CircleChat,
+						props: true,
+					},
+					{
+						path: "search",
+						name: "circle-search",
+						component: CircleSearch,
 						props: true,
 					},
 					{

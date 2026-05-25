@@ -75,6 +75,12 @@ export const useCircleStore = defineStore("circles", {
 			const res = await axios.get(`/api/circles/${circleId}/chat/history`);
 			this.chatMessages = res.data;
 		},
+		async search(circleId, query) {
+			const res = await axios.get(
+				`/api/circles/${circleId}/search?q=${encodeURIComponent(query)}`,
+			);
+			return res.data;
+		},
 		async createPost(circleId, postData) {
 			await axios.post(`/api/circles/${circleId}/posts`, postData);
 			await this.fetchPosts(circleId);
