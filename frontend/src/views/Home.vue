@@ -114,13 +114,119 @@
 				</div>
 			</header>
 
-			<div class="flex-1 overflow-hidden">
+			<div class="flex-1 overflow-y-auto bg-gray-950/20">
 				<router-view></router-view>
-				<div
-					v-if="route.path === '/'"
-					class="h-full flex items-center justify-center text-gray-500"
-				>
-					Select a circle to start communicating
+				<div v-if="route.path === '/'" class="h-full p-8">
+					<div class="max-w-6xl mx-auto">
+						<div class="flex items-center justify-between mb-8">
+							<h1 class="text-3xl font-bold">Your Circles</h1>
+							<button
+								@click="showCreateModal = true"
+								class="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-bold transition flex items-center space-x-2"
+							>
+								<span>+</span>
+								<span>Create Circle</span>
+							</button>
+						</div>
+
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+							<div
+								v-for="circle in circleStore.circles"
+								:key="circle.id"
+								@click="selectCircle(circle)"
+								class="bg-gray-800 border border-gray-700 rounded-xl p-6 cursor-pointer hover:border-purple-500 transition-all hover:shadow-xl group"
+							>
+								<div class="flex items-start justify-between mb-4">
+									<div
+										class="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center font-bold text-2xl shadow-lg group-hover:scale-110 transition-transform"
+									>
+										{{ circle.name ? circle.name[0].toUpperCase() : "?" }}
+									</div>
+									<div class="flex flex-col items-end space-y-1">
+										<span
+											class="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-gray-900 text-gray-400 border border-gray-700"
+										>
+											{{ circle.role }}
+										</span>
+										<span class="text-xs text-gray-500">
+											{{ circle.member_count }} members
+										</span>
+									</div>
+								</div>
+
+								<h2
+									class="text-xl font-bold mb-2 group-hover:text-purple-400 transition-colors"
+								>
+									{{ circle.name }}
+								</h2>
+								<p class="text-gray-400 text-sm line-clamp-2 mb-6 h-10">
+									{{ circle.description || "No description provided." }}
+								</p>
+
+								<div class="space-y-3 pt-4 border-t border-gray-700/50">
+									<!-- Unread Stats -->
+									<div class="flex items-center space-x-4">
+										<div
+											class="flex items-center space-x-1.5"
+											:title="circle.unread_post_count + ' unread posts'"
+										>
+											<span class="text-lg">📰</span>
+											<span
+												:class="[
+													'text-xs font-bold',
+													circle.unread_post_count > 0
+														? 'text-purple-400'
+														: 'text-gray-600',
+												]"
+											>
+												{{ circle.unread_post_count }}
+											</span>
+										</div>
+										<div
+											class="flex items-center space-x-1.5"
+											:title="circle.unread_chat_count + ' unread messages'"
+										>
+											<span class="text-lg">💬</span>
+											<span
+												:class="[
+													'text-xs font-bold',
+													circle.unread_chat_count > 0
+														? 'text-purple-400'
+														: 'text-gray-600',
+												]"
+											>
+												{{ circle.unread_chat_count }}
+											</span>
+										</div>
+									</div>
+
+									<!-- Last Activity -->
+									<div
+										v-if="circle.last_post_at"
+										class="flex flex-col space-y-1"
+									>
+										<span class="text-[10px] uppercase font-bold text-gray-600"
+											>Last Activity</span
+										>
+										<div class="flex items-center justify-between">
+											<span
+												class="text-xs text-gray-300 truncate max-w-[150px]"
+												:title="circle.last_post_title"
+											>
+												{{ circle.last_post_title || "New post" }}
+											</span>
+											<span class="text-[10px] text-gray-500 italic">
+												{{ formatDate(circle.last_post_at) }}
+											</span>
+										</div>
+									</div>
+									<div v-else class="text-[10px] italic text-gray-600">
+										No recent activity
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -141,6 +247,18 @@ const router = useRouter();
 const route = useRoute();
 
 const siteName = import.meta.env.VITE_SITE_NAME || "Bulletin";
+
+const formatDate = (dateStr) => {
+	if (!dateStr) return "";
+	const date = new Date(dateStr);
+	const now = new Date();
+	const diff = now - date;
+
+	if (diff < 24 * 60 * 60 * 1000) {
+		return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+	}
+	return date.toLocaleDateString([], { month: "short", day: "numeric" });
+};
 
 const showCreateModal = ref(false);
 const newCircle = ref({

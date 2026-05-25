@@ -107,16 +107,34 @@ func (h *Handler) ListCircles(w http.ResponseWriter, r *http.Request) {
 			AND chat.user_id != $1
 			AND chat.created_at > COALESCE(rm.last_read_at, '1970-01-01')
 			GROUP BY chat.circle_id
+		),
+		circle_member_counts AS (
+			SELECT circle_id, COUNT(*) as count
+			FROM circle_members
+			GROUP BY circle_id
+		),
+		last_posts AS (
+			-- Find the most recent post per circle
+			SELECT DISTINCT ON (circle_id) circle_id, title, created_at
+			FROM posts
+			ORDER BY circle_id, created_at DESC
 		)
 		SELECT c.id, c.name, COALESCE(c.description, ''), c.owner_id, c.allow_freeform_tags,
 		        c.invite_min_role, c.chat_retention_days, c.chat_retention_count, c.created_at, cm.role,
 		        rm_chat.last_read_at,
-		        COALESCE(cup.count, 0) + COALESCE(cuc.count, 0) as unread_count
+		        COALESCE(cup.count, 0) + COALESCE(cuc.count, 0) as unread_count,
+		        COALESCE(cuc.count, 0) as unread_chat_count,
+		        COALESCE(cup.count, 0) as unread_post_count,
+		        COALESCE(cmc.count, 0) as member_count,
+		        lp.title as last_post_title,
+		        lp.created_at as last_post_at
 		 FROM circles c
 		 JOIN circle_members cm ON c.id = cm.circle_id
 		 LEFT JOIN read_markers rm_chat ON rm_chat.entity_id = c.id AND rm_chat.user_id = $1
 		 LEFT JOIN circle_unread_posts cup ON cup.circle_id = c.id
 		 LEFT JOIN circle_unread_chat cuc ON cuc.circle_id = c.id
+		 LEFT JOIN circle_member_counts cmc ON cmc.circle_id = c.id
+		 LEFT JOIN last_posts lp ON lp.circle_id = c.id
 		 WHERE cm.user_id = $1`, userID)
 	if err != nil {
 		log.Printf("ListCircles query error: %v\n", err)
@@ -135,7 +153,8 @@ func (h *Handler) ListCircles(w http.ResponseWriter, r *http.Request) {
 		var c circleWithRole
 		err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.OwnerID, &c.AllowFreeformTags,
 			&c.InviteMinRole, &c.ChatRetentionDays, &c.ChatRetentionCount, &c.CreatedAt, &c.Role,
-			&c.LastReadAt, &c.UnreadCount)
+			&c.LastReadAt, &c.UnreadCount, &c.UnreadChatCount, &c.UnreadPostCount, &c.MemberCount,
+			&c.LastPostTitle, &c.LastPostAt)
 		if err != nil {
 			log.Printf("ListCircles scan error: %v\n", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
