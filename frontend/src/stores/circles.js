@@ -1,5 +1,7 @@
 import { defineStore } from "pinia";
 import axios from "axios";
+import { useAuthStore } from "./auth";
+import { showBrowserNotification } from "../utils/notifications";
 
 export const useCircleStore = defineStore("circles", {
 	state: () => ({
@@ -111,11 +113,24 @@ export const useCircleStore = defineStore("circles", {
 		async refreshUnreadCounts() {
 			const res = await axios.get("/api/circles");
 			const newCircles = res.data;
+			const auth = useAuthStore();
 
 			// Intelligently update existing objects to maintain reactivity
 			newCircles.forEach((newCircle) => {
 				const existing = this.circles.find((c) => c.id === newCircle.id);
 				if (existing) {
+					// Check for new notifications before updating
+					if (
+						newCircle.unread_count > existing.unread_count &&
+						auth.notificationsEnabled &&
+						document.visibilityState !== "visible"
+					) {
+						const diff = newCircle.unread_count - existing.unread_count;
+						showBrowserNotification(`Activity in ${newCircle.name}`, {
+							body: `You have ${diff} new notification${diff > 1 ? "s" : ""}.`,
+						});
+					}
+
 					existing.unread_count = newCircle.unread_count;
 					existing.unread_chat_count = newCircle.unread_chat_count;
 					existing.unread_post_count = newCircle.unread_post_count;

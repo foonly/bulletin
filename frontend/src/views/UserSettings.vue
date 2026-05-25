@@ -94,6 +94,48 @@
 
 		<hr class="my-8 border-gray-700" />
 
+		<!-- Notifications Section -->
+		<div class="space-y-4">
+			<div class="flex items-center justify-between">
+				<h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider">
+					Browser Notifications
+				</h3>
+				<span
+					:class="[
+						'text-[10px] uppercase font-bold px-1.5 py-0.5 rounded',
+						auth.notificationsEnabled
+							? 'bg-green-900/30 text-green-400 border border-green-800/50'
+							: 'bg-gray-700 text-gray-400',
+					]"
+				>
+					{{ auth.notificationsEnabled ? "Enabled" : "Disabled" }}
+				</span>
+			</div>
+			<div class="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
+				<p class="text-sm text-gray-400 mb-4">
+					Receive desktop notifications for new chat messages and forum activity
+					when the tab is in the background.
+				</p>
+				<button
+					@click="auth.setNotificationsEnabled(!auth.notificationsEnabled)"
+					:class="[
+						'w-full py-2 rounded font-bold transition text-sm border',
+						auth.notificationsEnabled
+							? 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+							: 'bg-purple-600 border-purple-500 text-white hover:bg-purple-700',
+					]"
+				>
+					{{
+						auth.notificationsEnabled
+							? "Disable Notifications"
+							: "Enable Notifications"
+					}}
+				</button>
+			</div>
+		</div>
+
+		<hr class="my-8 border-gray-700" />
+
 		<!-- MFA Section -->
 		<div class="space-y-4">
 			<div class="flex items-center justify-between">

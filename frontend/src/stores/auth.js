@@ -6,6 +6,8 @@ export const useAuthStore = defineStore("auth", {
 		user: null,
 		loading: false,
 		error: null,
+		notificationsEnabled:
+			localStorage.getItem("notifications_enabled") === "true",
 	}),
 	actions: {
 		async fetchMe() {
@@ -96,6 +98,18 @@ export const useAuthStore = defineStore("auth", {
 		async disableTOTP(password) {
 			await axios.post("/api/auth/totp/disable", { password });
 			await this.fetchMe();
+		},
+		setNotificationsEnabled(enabled) {
+			this.notificationsEnabled = enabled;
+			localStorage.setItem("notifications_enabled", enabled ? "true" : "false");
+			if (enabled && "Notification" in window) {
+				if (
+					Notification.permission !== "granted" &&
+					Notification.permission !== "denied"
+				) {
+					Notification.requestPermission();
+				}
+			}
 		},
 	},
 });

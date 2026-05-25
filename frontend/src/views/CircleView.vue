@@ -279,6 +279,7 @@ import { useToastStore } from "../stores/toast";
 import axios from "axios";
 import { useRouter, useRoute } from "vue-router";
 import InviteModal from "../components/InviteModal.vue";
+import { showBrowserNotification } from "../utils/notifications";
 
 const props = defineProps(["id"]);
 const circleStore = useCircleStore();
@@ -403,6 +404,15 @@ const connectWS = () => {
 			// Increment unread count if we are not looking at the chat
 			if (route.name !== "circle-chat" && msg.user_id !== auth.user?.id) {
 				circleStore.incrementUnreadChat(props.id);
+
+				if (auth.notificationsEnabled) {
+					showBrowserNotification(
+						`New message in ${circleStore.activeCircle?.name}`,
+						{
+							body: `${msg.username}: ${msg.content}`,
+						},
+					);
+				}
 			}
 		}
 	};
