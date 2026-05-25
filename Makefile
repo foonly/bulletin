@@ -21,7 +21,8 @@ setup:
 	@echo "--- Setting up project ---"
 	cd backend && go mod download
 	go install github.com/air-verse/air@latest
-	cd frontend && npm install
+	@echo "Setting up frontend..."
+	cd frontend && pnpm install
 
 build: build-backend build-frontend
 
@@ -32,7 +33,7 @@ build-backend:
 
 build-frontend:
 	@echo "--- Building frontend ---"
-	cd frontend && npm run build
+	cd frontend && pnpm run build
 
 infra:
 	docker-compose up -d
@@ -40,15 +41,19 @@ infra:
 down:
 	docker-compose down
 
-dev: infra
-	@echo "--- Starting development environment ---"
-	@echo "Run 'make dev-backend' and 'make dev-frontend' in separate terminals."
-
 dev-backend:
 	cd backend && DATABASE_URL=postgres://bulletin:bulletin_password@localhost:5432/bulletin?sslmode=disable air -c .air.toml
 
 dev-frontend:
-	cd frontend && npm run dev
+	@echo "Starting frontend in dev mode..."
+	cd frontend && pnpm run dev
+
+dev: infra
+	@echo "Starting dev environment..."
+	@echo "Run 'make dev-backend' and 'make dev-frontend' in separate terminals."
+	@echo "Or use a terminal multiplexer like tmux."
+
+build: build-backend build-frontend
 
 db-logs:
 	docker-compose logs -f db
