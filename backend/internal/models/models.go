@@ -7,11 +7,15 @@ import (
 )
 
 type User struct {
-	ID           uuid.UUID  `json:"id"`
-	Username     string     `json:"username"`
-	PasswordHash string     `json:"-"`
-	InvitedByID  *uuid.UUID `json:"invited_by_id"`
-	CreatedAt    time.Time  `json:"created_at"`
+	ID              uuid.UUID  `json:"id"`
+	Username        string     `json:"username"`
+	Email           *string    `json:"email"`
+	IsEmailVerified bool       `json:"is_email_verified"`
+	TotpEnabled     bool       `json:"totp_enabled"`
+	TotpSecret      *string    `json:"-"`
+	PasswordHash    string     `json:"-"`
+	InvitedByID     *uuid.UUID `json:"invited_by_id"`
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
 type Session struct {

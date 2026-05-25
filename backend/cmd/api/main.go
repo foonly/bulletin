@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,9 +13,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/username/bulletin/backend/internal/auth"
 	"github.com/username/bulletin/backend/internal/chat"
+	"github.com/username/bulletin/backend/internal/mailer"
 	"github.com/username/bulletin/backend/internal/posts"
 )
 
@@ -54,12 +57,19 @@ func main() {
 	// Bootstrap initial data if empty
 	bootstrap(pool)
 
+	// Initialize mailer
+	smtpHost := os.Getenv("SMTP_HOST")
+	if smtpHost == "" {
+		smtpHost = "localhost"
+	}
+	appMailer := mailer.NewMailer(smtpHost, 1025, "no-reply@bulletin.local")
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(auth.SessionMiddleware(pool))
 
-	authHandler := auth.NewHandler(pool)
+	authHandler := auth.NewHandler(pool, appMailer)
 	postHandler := posts.NewHandler(pool)
 	chatHub := chat.NewHub(pool)
 	go chatHub.Run()
@@ -76,11 +86,19 @@ func main() {
 		r.Post("/auth/register", authHandler.Register)
 		r.Post("/auth/login", authHandler.Login)
 		r.Post("/auth/logout", authHandler.Logout)
+		r.Post("/auth/request-reset", authHandler.RequestPasswordReset)
+		r.Post("/auth/reset-password", authHandler.ResetPassword)
+		r.Post("/auth/login-totp", authHandler.VerifyLoginTOTP)
 
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequireAuth)
 			r.Get("/auth/me", authHandler.Me)
 			r.Put("/auth/me", authHandler.UpdateMe)
+			r.Post("/auth/request-verification", authHandler.RequestEmailVerification)
+			r.Post("/auth/verify-email", authHandler.VerifyEmail)
+			r.Post("/auth/totp/setup", authHandler.SetupTOTP)
+			r.Post("/auth/totp/enable", authHandler.EnableTOTP)
+			r.Post("/auth/totp/disable", authHandler.DisableTOTP)
 			r.Post("/circles", postHandler.CreateCircle)
 
 			r.Get("/circles", postHandler.ListCircles)
@@ -144,6 +162,17 @@ func bootstrap(pool *pgxpool.Pool) {
 }
 
 func runMigrations(pool *pgxpool.Pool) error {
+	// Create migrations table if it doesn't exist
+	_, err := pool.Exec(context.Background(), `
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			name TEXT PRIMARY KEY,
+			applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create migrations table: %w", err)
+	}
+
 	// Simple migration runner that looks for .up.sql files in alphabetical order
 	files, err := os.ReadDir("migrations")
 	if err != nil {
@@ -152,14 +181,56 @@ func runMigrations(pool *pgxpool.Pool) error {
 
 	for _, f := range files {
 		if !f.IsDir() && (len(f.Name()) > 7 && f.Name()[len(f.Name())-7:] == ".up.sql") {
+			// Check if already applied
+			var exists bool
+			err := pool.QueryRow(context.Background(), "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE name = $1)", f.Name()).Scan(&exists)
+			if err != nil {
+				return fmt.Errorf("failed to check migration status: %w", err)
+			}
+
+			if exists {
+				continue
+			}
+
 			log.Printf("Running migration: %s\n", f.Name())
 			content, err := os.ReadFile("migrations/" + f.Name())
 			if err != nil {
 				return err
 			}
-			_, err = pool.Exec(context.Background(), string(content))
+
+			tx, err := pool.Begin(context.Background())
 			if err != nil {
-				log.Printf("Error in migration %s: %v\n", f.Name(), err)
+				return err
+			}
+			defer tx.Rollback(context.Background())
+
+			_, err = tx.Exec(context.Background(), string(content))
+			if err != nil {
+				// Check if it's an "already exists" error
+				var pgErr *pgconn.PgError
+				isAlreadyExists := false
+				if errors.As(err, &pgErr) {
+					// 42710: duplicate_object (type)
+					// 42P07: duplicate_table
+					// 42701: duplicate_column
+					if pgErr.Code == "42710" || pgErr.Code == "42P07" || pgErr.Code == "42701" {
+						log.Printf("Migration %s already partially or fully applied (SQLSTATE %s), skipping...\n", f.Name(), pgErr.Code)
+						isAlreadyExists = true
+					}
+				}
+
+				if !isAlreadyExists {
+					return fmt.Errorf("error in migration %s: %w", f.Name(), err)
+				}
+			}
+
+			_, err = tx.Exec(context.Background(), "INSERT INTO schema_migrations (name) VALUES ($1)", f.Name())
+			if err != nil {
+				return fmt.Errorf("failed to record migration %s: %w", f.Name(), err)
+			}
+
+			if err := tx.Commit(context.Background()); err != nil {
+				return err
 			}
 		}
 	}

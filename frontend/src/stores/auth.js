@@ -20,8 +20,12 @@ export const useAuthStore = defineStore("auth", {
 			this.loading = true;
 			this.error = null;
 			try {
-				await axios.post("/api/auth/login", { username, password });
+				const res = await axios.post("/api/auth/login", { username, password });
+				if (res.data.status === "mfa_required") {
+					return { mfaRequired: true };
+				}
 				await this.fetchMe();
+				return { mfaRequired: false };
 			} catch (err) {
 				this.error = err.response?.data || "Login failed";
 				throw err;
@@ -29,12 +33,26 @@ export const useAuthStore = defineStore("auth", {
 				this.loading = false;
 			}
 		},
-		async register(username, password, inviteCode) {
+		async loginTOTP(code) {
+			this.loading = true;
+			this.error = null;
+			try {
+				await axios.post("/api/auth/login-totp", { code });
+				await this.fetchMe();
+			} catch (err) {
+				this.error = err.response?.data || "MFA failed";
+				throw err;
+			} finally {
+				this.loading = false;
+			}
+		},
+		async register(username, email, password, inviteCode) {
 			this.loading = true;
 			this.error = null;
 			try {
 				await axios.post("/api/auth/register", {
 					username,
+					email,
 					password,
 					invite_code: inviteCode,
 				});
@@ -52,6 +70,31 @@ export const useAuthStore = defineStore("auth", {
 		},
 		async updateMe(userData) {
 			await axios.put("/api/auth/me", userData);
+			await this.fetchMe();
+		},
+		async requestReset(email) {
+			await axios.post("/api/auth/request-reset", { email });
+		},
+		async resetPassword(token, password) {
+			await axios.post("/api/auth/reset-password", { token, password });
+		},
+		async requestVerification() {
+			await axios.post("/api/auth/request-verification");
+		},
+		async verifyEmail(token) {
+			await axios.post("/api/auth/verify-email", { token });
+			await this.fetchMe();
+		},
+		async setupTOTP() {
+			const res = await axios.post("/api/auth/totp/setup");
+			return res.data;
+		},
+		async enableTOTP(code) {
+			await axios.post("/api/auth/totp/enable", { code });
+			await this.fetchMe();
+		},
+		async disableTOTP(password) {
+			await axios.post("/api/auth/totp/disable", { password });
 			await this.fetchMe();
 		},
 	},

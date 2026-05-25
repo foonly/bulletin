@@ -21,6 +21,15 @@
 						required
 					/>
 				</div>
+				<div class="mb-4">
+					<label class="block text-sm font-medium mb-1">Email Address</label>
+					<input
+						v-model="email"
+						type="email"
+						class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-purple-500"
+						required
+					/>
+				</div>
 				<div class="mb-6">
 					<label class="block text-sm font-medium mb-1">Password</label>
 					<input
@@ -59,11 +68,17 @@ const router = useRouter();
 const siteName = import.meta.env.VITE_SITE_NAME || "Bulletin";
 const inviteCode = ref("");
 const username = ref("");
+const email = ref("");
 const password = ref("");
 
 const handleRegister = async () => {
 	try {
-		await auth.register(username.value, password.value, inviteCode.value);
+		await auth.register(
+			username.value,
+			email.value,
+			password.value,
+			inviteCode.value,
+		);
 		toast.success(`Account created! Welcome to ${siteName}.`);
 		router.push("/");
 	} catch (err) {

@@ -20,14 +20,17 @@ func SessionMiddleware(db *pgxpool.Pool) func(http.Handler) http.Handler {
 
 			var userID uuid.UUID
 			var expiresAt time.Time
-			err = db.QueryRow(r.Context(), "SELECT user_id, expires_at FROM sessions WHERE token = $1", cookie.Value).Scan(&userID, &expiresAt)
+			var mfaPending bool
+			err = db.QueryRow(r.Context(), "SELECT user_id, expires_at, mfa_pending FROM sessions WHERE token = $1", cookie.Value).Scan(&userID, &expiresAt, &mfaPending)
 			if err != nil {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			if time.Now().After(expiresAt) {
-				_, _ = db.Exec(r.Context(), "DELETE FROM sessions WHERE token = $1", cookie.Value)
+			if time.Now().After(expiresAt) || mfaPending {
+				if time.Now().After(expiresAt) {
+					_, _ = db.Exec(r.Context(), "DELETE FROM sessions WHERE token = $1", cookie.Value)
+				}
 				next.ServeHTTP(w, r)
 				return
 			}
