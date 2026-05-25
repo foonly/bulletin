@@ -58,6 +58,10 @@ build: build-backend build-frontend
 db-logs:
 	docker-compose logs -f db
 
+install:
+	cp backend/bin/$(BINARY_NAME) /usr/local/bin/$(BINARY_NAME)
+	cp -r frontend/dist/* /var/www/bulletin/
+
 clean:
 	rm -rf backend/bin
 	rm -rf frontend/dist
