@@ -332,7 +332,7 @@ const isUnread = (msg) => {
 };
 
 const unreadChatCount = computed(() => {
-	return circleStore.chatMessages.filter(isUnread).length;
+	return (circleStore.chatMessages || []).filter(isUnread).length;
 });
 
 const loadCircleData = async () => {

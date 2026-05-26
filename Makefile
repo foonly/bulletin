@@ -1,20 +1,25 @@
 # Bulletin Makefile
 
-.PHONY: help setup infra dev dev-backend dev-frontend build build-backend build-frontend clean db-logs
+# Variables
+BINARY_NAME=bulletin-api
+
+.PHONY: help setup build build-backend build-frontend infra dev dev-backend dev-frontend down db-logs clean
 
 help:
 	@echo "Usage:"
-	@echo "  make setup          Install dependencies for backend and frontend"
-	@echo "  make infra          Start Postgres and Redis in Docker (detached)"
-	@echo "  make dev            Start everything (infra + live-reload backend + vite)"
-	@echo "  make build          Build backend and frontend"
-	@echo "  make db-logs        Follow database logs"
-	@echo "  make clean          Clean build artifacts"
+	@echo "  make setup            Install dependencies"
+	@echo "  make build            Build backend and frontend"
+	@echo "  make infra            Start infrastructure (Postgres, Redis, Mailhog)"
+	@echo "  make dev              Start infrastructure and then run dev commands"
+	@echo "  make dev-backend      Start backend with live-reload (Air)"
+	@echo "  make dev-frontend     Start frontend with HMR (Vite)"
+	@echo "  make down             Stop infrastructure"
+	@echo "  make db-logs          Follow database logs"
+	@echo "  make clean            Remove build artifacts and dependencies"
 
 setup:
-	@echo "Setting up backend..."
+	@echo "--- Setting up project ---"
 	cd backend && go mod download
-	@echo "Installing Air for live-reload..."
 	go install github.com/air-verse/air@latest
 	@echo "Setting up frontend..."
 	cd frontend && pnpm install
@@ -22,18 +27,21 @@ setup:
 build: build-backend build-frontend
 
 build-backend:
-	@echo "Building backend binary..."
-	cd backend && go build -o bin/bulletin-api cmd/api/*.go
+	@echo "--- Building backend ---"
+	mkdir -p backend/bin
+	cd backend && go build -o bin/$(BINARY_NAME) cmd/api/*.go
 
 build-frontend:
-	@echo "Building frontend assets..."
-	cd frontend && npm run build
+	@echo "--- Building frontend ---"
+	cd frontend && pnpm run build
 
 infra:
 	docker-compose up -d
 
+down:
+	docker-compose down
+
 dev-backend:
-	@echo "Starting backend with Air (live-reload)..."
 	cd backend && DATABASE_URL=postgres://bulletin:bulletin_password@localhost:5432/bulletin?sslmode=disable air -c .air.toml
 
 dev-frontend:
@@ -47,6 +55,10 @@ dev: infra
 
 db-logs:
 	docker-compose logs -f db
+
+install:
+	cp backend/bin/$(BINARY_NAME) /usr/local/bin/$(BINARY_NAME)
+	cp -r frontend/dist/* /var/www/bulletin/
 
 clean:
 	rm -rf backend/bin

@@ -20,6 +20,7 @@ Environment=SMTP_FROM=no-reply@bulletin.local
 Environment=SMTP_USER=
 Environment=SMTP_PASS=
 Environment=SMTP_USE_TLS=false
+Environment=FRONTEND_URL=http://localhost:5173
 
 # Optional: Load more environment variables from a file
 # EnvironmentFile=/etc/bulletin/api.env
