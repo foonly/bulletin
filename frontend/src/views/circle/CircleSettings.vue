@@ -128,6 +128,12 @@ const inactiveInvites = computed(() => {
 const formatDate = (dateStr) => {
 	return new Date(dateStr).toLocaleString();
 };
+
+const copyInviteLink = (code) => {
+	const url = `${window.location.origin}/join/${code}`;
+	navigator.clipboard.writeText(url);
+	toast.success("Invite link copied to clipboard!");
+};
 </script>
 
 <template>
@@ -212,6 +218,13 @@ const formatDate = (dateStr) => {
 								class="bg-purple-900/30 text-purple-400 px-2 py-0.5 rounded font-mono font-bold"
 								>{{ invite.code }}</code
 							>
+							<button
+								@click="copyInviteLink(invite.code)"
+								class="p-1 hover:bg-gray-700 rounded transition"
+								title="Copy Invite Link"
+							>
+								🔗
+							</button>
 							<span class="text-xs text-gray-500"
 								>grants {{ invite.role_to_grant }} • Issued by
 								{{ invite.created_by }}</span

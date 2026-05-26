@@ -45,16 +45,6 @@ dev: infra
 	@echo "Run 'make dev-backend' and 'make dev-frontend' in separate terminals."
 	@echo "Or use a terminal multiplexer like tmux."
 
-build: build-backend build-frontend
-
-build-backend:
-	@echo "Building backend..."
-	cd backend && go build -o bin/api ./cmd/api
-
-build-frontend:
-	@echo "Building frontend..."
-	cd frontend && pnpm run build
-
 db-logs:
 	docker-compose logs -f db
 

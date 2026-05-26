@@ -100,6 +100,17 @@ export const useCircleStore = defineStore("circles", {
 		async deleteMember(circleId, userId) {
 			await axios.delete(`/api/circles/${circleId}/members/${userId}`);
 		},
+		async joinCircle(inviteCode) {
+			const res = await axios.post("/api/circles/join", {
+				invite_code: inviteCode,
+			});
+			await this.fetchCircles();
+			return res.data;
+		},
+		async getInviteInfo(inviteCode) {
+			const res = await axios.get(`/api/invites/${inviteCode}`);
+			return res.data;
+		},
 		addChatMessage(msg) {
 			this.chatMessages.push(msg);
 		},

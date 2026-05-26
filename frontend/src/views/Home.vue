@@ -37,6 +37,19 @@
 				</div>
 			</div>
 			<div
+				@click="showJoinModal = true"
+				class="w-12 h-12 rounded-3xl bg-gray-800 cursor-pointer flex items-center justify-center text-blue-500 hover:bg-blue-600 hover:text-white transition-all hover:rounded-xl group relative"
+				title="Join a Circle"
+			>
+				<span class="text-xl">#</span>
+				<!-- Tooltip -->
+				<div
+					class="absolute left-16 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 border border-gray-700 shadow-xl"
+				>
+					Join a Circle
+				</div>
+			</div>
+			<div
 				@click="showCreateModal = true"
 				class="w-12 h-12 rounded-3xl bg-gray-800 cursor-pointer flex items-center justify-center text-green-500 hover:bg-green-600 hover:text-white transition-all hover:rounded-xl"
 			>
@@ -93,6 +106,49 @@
 			</div>
 		</div>
 
+		<!-- Join Circle Modal -->
+		<div
+			v-if="showJoinModal"
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+		>
+			<div
+				class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md border border-gray-700"
+			>
+				<div class="p-6 space-y-4">
+					<h2 class="text-xl font-bold">Join a Circle</h2>
+					<p class="text-sm text-gray-400">
+						Enter an invite code to join an existing circle.
+					</p>
+					<div class="space-y-1">
+						<label class="text-xs text-gray-400 font-bold uppercase"
+							>Invite Code</label
+						>
+						<input
+							v-model="joinInviteCode"
+							placeholder="e.g. welcome"
+							class="w-full bg-gray-900 border border-gray-700 p-2 rounded focus:outline-none focus:border-purple-500"
+							@keyup.enter="handleJoinCircle"
+						/>
+					</div>
+					<div class="flex justify-end space-x-3 pt-2">
+						<button
+							@click="showJoinModal = false"
+							class="px-4 py-2 text-sm text-gray-400 hover:text-white transition"
+						>
+							Cancel
+						</button>
+						<button
+							@click="handleJoinCircle"
+							:disabled="!joinInviteCode.trim()"
+							class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							Join Circle
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<!-- Main Content -->
 		<div class="flex-1 flex flex-col">
 			<header
@@ -120,13 +176,22 @@
 					<div class="max-w-6xl mx-auto">
 						<div class="flex items-center justify-between mb-8">
 							<h1 class="text-3xl font-bold">Your Circles</h1>
-							<button
-								@click="showCreateModal = true"
-								class="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-bold transition flex items-center space-x-2"
-							>
-								<span>+</span>
-								<span>Create Circle</span>
-							</button>
+							<div class="flex space-x-4">
+								<button
+									@click="showJoinModal = true"
+									class="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold transition flex items-center space-x-2 border border-gray-600"
+								>
+									<span>#</span>
+									<span>Join Circle</span>
+								</button>
+								<button
+									@click="showCreateModal = true"
+									class="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-bold transition flex items-center space-x-2"
+								>
+									<span>+</span>
+									<span>Create Circle</span>
+								</button>
+							</div>
 						</div>
 
 						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -266,6 +331,9 @@ const newCircle = ref({
 	description: "",
 });
 
+const showJoinModal = ref(false);
+const joinInviteCode = ref("");
+
 const activeCircle = computed(() => circleStore.activeCircle);
 
 const syncActiveCircle = () => {
@@ -326,6 +394,19 @@ const handleCreateCircle = async () => {
 		router.push(`/circle/${res.id}`);
 	} catch (err) {
 		toast.error("Failed to create circle");
+	}
+};
+
+const handleJoinCircle = async () => {
+	if (!joinInviteCode.value.trim()) return;
+	try {
+		const res = await circleStore.joinCircle(joinInviteCode.value);
+		toast.success("Joined circle!");
+		showJoinModal.value = false;
+		joinInviteCode.value = "";
+		router.push(`/circle/${res.id}`);
+	} catch (err) {
+		toast.error(err.response?.data || "Failed to join circle");
 	}
 };
 

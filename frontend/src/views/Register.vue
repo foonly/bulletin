@@ -57,19 +57,26 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 
 const auth = useAuthStore();
 const toast = useToastStore();
 const router = useRouter();
+const route = useRoute();
 const siteName = import.meta.env.VITE_SITE_NAME || "Bulletin";
 const inviteCode = ref("");
 const username = ref("");
 const email = ref("");
 const password = ref("");
+
+onMounted(() => {
+	if (route.query.code) {
+		inviteCode.value = route.query.code;
+	}
+});
 
 const handleRegister = async () => {
 	try {

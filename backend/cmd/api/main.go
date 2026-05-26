@@ -102,6 +102,7 @@ func main() {
 		r.Post("/auth/request-reset", authHandler.RequestPasswordReset)
 		r.Post("/auth/reset-password", authHandler.ResetPassword)
 		r.Post("/auth/login-totp", authHandler.VerifyLoginTOTP)
+		r.Get("/invites/{code}", postHandler.GetInvite)
 
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequireAuth)
@@ -112,6 +113,7 @@ func main() {
 			r.Post("/auth/totp/setup", authHandler.SetupTOTP)
 			r.Post("/auth/totp/enable", authHandler.EnableTOTP)
 			r.Post("/auth/totp/disable", authHandler.DisableTOTP)
+			r.Post("/circles/join", postHandler.JoinCircle)
 			r.Post("/circles", postHandler.CreateCircle)
 
 			r.Get("/circles", postHandler.ListCircles)
