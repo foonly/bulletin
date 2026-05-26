@@ -27,6 +27,75 @@ const settings = ref({
 
 const adminNewTagName = ref("");
 
+const editingTag = ref(null);
+const editTagName = ref("");
+
+const mergingTag = ref(null);
+const mergeTargetTagId = ref("");
+
+const deletingTag = ref(null);
+
+const startEditTag = (tag) => {
+	editingTag.value = tag;
+	editTagName.value = tag.name;
+};
+
+const cancelEditTag = () => {
+	editingTag.value = null;
+	editTagName.value = "";
+};
+
+const handleUpdateTag = async () => {
+	const name = editTagName.value.trim().toLowerCase();
+	if (!name || name === editingTag.value.name) {
+		cancelEditTag();
+		return;
+	}
+
+	try {
+		await circleStore.updateTag(props.id, editingTag.value.id, name);
+		toast.success(`Tag renamed to #${name}`);
+		editingTag.value = null;
+	} catch (err) {
+		toast.error("Failed to rename tag");
+	}
+};
+
+const startMergeTag = (tag) => {
+	mergingTag.value = tag;
+	mergeTargetTagId.value = "";
+};
+
+const handleMergeTag = async () => {
+	if (!mergeTargetTagId.value) return;
+
+	try {
+		await circleStore.mergeTags(
+			props.id,
+			mergingTag.value.id,
+			mergeTargetTagId.value,
+		);
+		toast.success("Tags merged successfully");
+		mergingTag.value = null;
+	} catch (err) {
+		toast.error("Failed to merge tags");
+	}
+};
+
+const startDeleteTag = (tag) => {
+	deletingTag.value = tag;
+};
+
+const handleDeleteTag = async () => {
+	try {
+		await circleStore.deleteTag(props.id, deletingTag.value.id);
+		toast.success("Tag and all its posts deleted");
+		deletingTag.value = null;
+	} catch (err) {
+		toast.error("Failed to delete tag");
+	}
+};
+
 const syncSettings = () => {
 	if (circleStore.activeCircle) {
 		settings.value = { ...circleStore.activeCircle };
@@ -313,24 +382,198 @@ const copyInviteLink = (code) => {
 					Add Tag
 				</button>
 			</div>
-			<div class="flex flex-wrap gap-2 pt-2">
+
+			<div class="space-y-2 pt-2">
 				<div
 					v-for="tag in circleStore.tags"
 					:key="tag.id"
-					class="bg-gray-900 border border-gray-700 px-3 py-1.5 rounded-lg flex items-center"
+					class="bg-gray-900 border border-gray-700 p-3 rounded-lg flex items-center justify-between group"
 				>
-					<span :class="tag.is_pinned ? 'text-purple-400' : ''"
-						>#{{ tag.name }}</span
+					<div class="flex items-center space-x-3">
+						<span
+							class="text-lg"
+							:class="tag.is_pinned ? 'text-purple-400' : 'text-gray-400'"
+							>#</span
+						>
+						<div
+							v-if="editingTag?.id === tag.id"
+							class="flex items-center space-x-2"
+						>
+							<input
+								v-model="editTagName"
+								class="bg-gray-800 border border-purple-500 rounded px-2 py-0.5 text-sm focus:outline-none"
+								@keyup.enter="handleUpdateTag"
+								@keyup.esc="cancelEditTag"
+								v-focus
+							/>
+							<button @click="handleUpdateTag" class="text-green-500 text-xs">
+								Save
+							</button>
+							<button @click="cancelEditTag" class="text-gray-500 text-xs">
+								Cancel
+							</button>
+						</div>
+						<div v-else>
+							<span
+								class="font-bold"
+								:class="tag.is_pinned ? 'text-purple-400' : ''"
+								>{{ tag.name }}</span
+							>
+							<span class="text-[10px] text-gray-500 ml-2 uppercase font-bold"
+								>{{ tag.use_count }} posts</span
+							>
+						</div>
+					</div>
+
+					<div
+						class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity"
 					>
-					<button
-						@click="togglePin(tag.id, !tag.is_pinned)"
-						class="ml-2 text-xs text-gray-500 hover:text-purple-400"
-					>
-						{{ tag.is_pinned ? "Unpin" : "Pin" }}
-					</button>
+						<button
+							@click="togglePin(tag.id, !tag.is_pinned)"
+							class="p-1 hover:bg-gray-800 rounded transition text-xs"
+							:title="tag.is_pinned ? 'Unpin' : 'Pin'"
+						>
+							{{ tag.is_pinned ? "📌" : "📍" }}
+						</button>
+						<button
+							@click="startEditTag(tag)"
+							class="p-1 hover:bg-gray-800 rounded transition text-xs"
+							title="Rename"
+						>
+							✏️
+						</button>
+						<button
+							@click="startMergeTag(tag)"
+							class="p-1 hover:bg-gray-800 rounded transition text-xs"
+							title="Merge"
+						>
+							🔄
+						</button>
+						<button
+							v-if="isAdmin"
+							@click="startDeleteTag(tag)"
+							class="p-1 hover:bg-red-900/20 rounded transition text-xs text-red-400"
+							title="Delete"
+						>
+							🗑️
+						</button>
+					</div>
 				</div>
 			</div>
 		</section>
+
+		<!-- Merge Tag Modal -->
+		<div
+			v-if="mergingTag"
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+		>
+			<div
+				class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md border border-gray-700 p-6 space-y-4"
+			>
+				<h2 class="text-xl font-bold">Merge Tag #{{ mergingTag.name }}</h2>
+				<p class="text-sm text-gray-400">
+					This will move all posts from
+					<span class="text-white font-bold">#{{ mergingTag.name }}</span> to
+					another tag and then delete
+					<span class="text-white font-bold">#{{ mergingTag.name }}</span
+					>.
+				</p>
+
+				<div class="space-y-1">
+					<label class="text-xs text-gray-400 font-bold uppercase"
+						>Target Tag</label
+					>
+					<select
+						v-model="mergeTargetTagId"
+						class="w-full bg-gray-900 border border-gray-700 p-2 rounded focus:outline-none focus:border-purple-500"
+					>
+						<option value="" disabled>Select a tag to merge into</option>
+						<option
+							v-for="tag in circleStore.tags.filter(
+								(t) => t.id !== mergingTag.id,
+							)"
+							:key="tag.id"
+							:value="tag.id"
+						>
+							#{{ tag.name }} ({{ tag.use_count }} posts)
+						</option>
+					</select>
+				</div>
+
+				<div class="flex justify-end space-x-3 pt-2">
+					<button
+						@click="mergingTag = null"
+						class="px-4 py-2 text-sm text-gray-400 hover:text-white transition"
+					>
+						Cancel
+					</button>
+					<button
+						@click="handleMergeTag"
+						:disabled="!mergeTargetTagId"
+						class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded font-bold transition disabled:opacity-50"
+					>
+						Merge Tags
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Delete Tag Modal -->
+		<div
+			v-if="deletingTag"
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+		>
+			<div
+				class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md border border-red-900/50 p-6 space-y-4"
+			>
+				<div class="flex items-center space-x-3 text-red-500">
+					<span class="text-3xl">⚠️</span>
+					<h2 class="text-xl font-bold">Delete Tag #{{ deletingTag.name }}?</h2>
+				</div>
+
+				<div class="bg-red-900/20 border border-red-900/50 p-4 rounded-lg">
+					<p class="text-sm text-red-200 font-bold mb-2">
+						WARNING: This action is irreversible!
+					</p>
+					<p class="text-sm text-red-300">
+						Deleting this tag will also
+						<span class="underline"
+							>permanently delete all posts and threads</span
+						>
+						that belong to it.
+					</p>
+				</div>
+
+				<p class="text-sm text-gray-400">
+					If you want to keep the posts, you should
+					<button
+						@click="
+							startMergeTag(deletingTag);
+							deletingTag = null;
+						"
+						class="text-purple-400 hover:underline"
+					>
+						merge this tag
+					</button>
+					into another tag instead.
+				</p>
+
+				<div class="flex justify-end space-x-3 pt-2">
+					<button
+						@click="deletingTag = null"
+						class="px-4 py-2 text-sm text-gray-400 hover:text-white transition"
+					>
+						Cancel
+					</button>
+					<button
+						@click="handleDeleteTag"
+						class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded font-bold transition"
+					>
+						Delete Permanently
+					</button>
+				</div>
+			</div>
+		</div>
 
 		<section
 			v-if="isAdmin"
