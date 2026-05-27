@@ -130,9 +130,10 @@
 							/>
 						</svg>
 					</button>
-					<router-link to="/" class="app-header__title">{{
-						siteName
-					}}</router-link>
+					<router-link to="/" class="app-header__title">
+						<LogoIcon class="app-header__logo" />
+						<span>{{ siteName }}</span>
+					</router-link>
 				</div>
 				<nav class="app-header__nav">
 					<router-link to="/settings">{{ auth.user?.username }}</router-link>
@@ -250,6 +251,7 @@ import { useCircleStore } from "../stores/circles";
 import { useUIStore } from "../stores/ui";
 import { useToastStore } from "../stores/toast";
 import { useRouter, useRoute } from "vue-router";
+import LogoIcon from "../components/LogoIcon.vue";
 
 const auth = useAuthStore();
 const circleStore = useCircleStore();

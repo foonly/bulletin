@@ -82,12 +82,22 @@
 }
 
 .app-header__title {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
 	font-weight: 700;
 	font-size: var(--text-lg);
 	color: var(--fg-2);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.app-header__logo {
+	width: 1.5rem;
+	height: 1.5rem;
+	color: var(--accent);
+	flex-shrink: 0;
 }
 
 .app-header__nav {
