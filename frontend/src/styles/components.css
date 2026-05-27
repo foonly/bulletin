@@ -43,6 +43,16 @@
   color: var(--success);
 }
 
+.circle-icon--join {
+  color: var(--info);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+.circle-icon--join:hover {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
 /* Tooltip */
 .circle-icon .tooltip {
   position: absolute;
@@ -1064,6 +1074,36 @@
 .empty-state p {
   font-size: var(--text-sm);
   color: var(--fg-3);
+}
+
+/* ============================================================
+   TAG MANAGEMENT ROW (admin settings)
+   ============================================================ */
+.tag-manage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0.5rem 0.75rem;
+  transition: background-color var(--transition);
+}
+
+.tag-manage-row:hover {
+  background: var(--bg-hover);
+}
+
+.tag-manage-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.tag-manage-row:hover .tag-manage-row__actions {
+  opacity: 1;
 }
 
 /* ============================================================

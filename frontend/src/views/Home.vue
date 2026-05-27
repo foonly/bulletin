@@ -18,8 +18,14 @@
 			</div>
 
 			<button
+				class="circle-icon circle-icon--join"
+				title="Join a Circle"
+				@click="showJoinModal = true"
+			>#</button>
+
+			<button
 				class="circle-icon circle-icon--add"
-				:title="'Create circle'"
+				title="Create circle"
 				@click="showCreateModal = true"
 			>+</button>
 		</nav>
@@ -54,6 +60,35 @@
 			</div>
 		</div>
 
+		<!-- Join Circle Modal -->
+		<div v-if="showJoinModal" class="modal-backdrop" @click.self="showJoinModal = false">
+			<div class="modal">
+				<div class="modal__header">
+					<h2>Join a Circle</h2>
+					<button class="btn-icon" @click="showJoinModal = false">✕</button>
+				</div>
+				<p style="font-size: var(--text-sm); color: var(--fg-2)">
+					Enter an invite code to join an existing circle.
+				</p>
+				<div class="field">
+					<label class="label-uppercase">Invite Code</label>
+					<input
+						v-model="joinInviteCode"
+						placeholder="e.g. welcome"
+						@keyup.enter="handleJoinCircle"
+					/>
+				</div>
+				<div class="form-actions">
+					<button class="btn btn-ghost" @click="showJoinModal = false">Cancel</button>
+					<button
+						class="btn btn-primary"
+						@click="handleJoinCircle"
+						:disabled="!joinInviteCode.trim()"
+					>Join Circle</button>
+				</div>
+			</div>
+		</div>
+
 		<!-- Main content area -->
 		<div class="app-main">
 			<header class="app-header">
@@ -71,9 +106,14 @@
 				<div v-if="route.path === '/'" class="home-dashboard">
 					<div class="home-dashboard__header">
 						<h1>Your Circles</h1>
-						<button class="btn btn-primary" @click="showCreateModal = true">
-							+ Create Circle
-						</button>
+						<div style="display: flex; gap: 0.75rem">
+							<button class="btn btn-secondary" @click="showJoinModal = true">
+								# Join Circle
+							</button>
+							<button class="btn btn-primary" @click="showCreateModal = true">
+								+ Create Circle
+							</button>
+						</div>
 					</div>
 
 					<div class="circles-grid">
@@ -171,6 +211,10 @@ const formatDate = (dateStr) => {
 
 const showCreateModal = ref(false);
 const newCircle = ref({ name: "", description: "" });
+
+const showJoinModal = ref(false);
+const joinInviteCode = ref("");
+
 const activeCircle = computed(() => circleStore.activeCircle);
 
 const applyPalette = (circle) => {
@@ -243,6 +287,19 @@ const handleCreateCircle = async () => {
 		router.push(`/circle/${res.id}`);
 	} catch (err) {
 		toast.error("Failed to create circle");
+	}
+};
+
+const handleJoinCircle = async () => {
+	if (!joinInviteCode.value.trim()) return;
+	try {
+		const res = await circleStore.joinCircle(joinInviteCode.value);
+		toast.success("Joined circle!");
+		showJoinModal.value = false;
+		joinInviteCode.value = "";
+		router.push(`/circle/${res.id}`);
+	} catch (err) {
+		toast.error(err.response?.data || "Failed to join circle");
 	}
 };
 

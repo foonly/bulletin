@@ -35,6 +35,67 @@ const palettes = [
 	{ key: "slate",  label: "Slate" },
 ];
 
+const editingTag = ref(null);
+const editTagName = ref("");
+const mergingTag = ref(null);
+const mergeTargetTagId = ref("");
+const deletingTag = ref(null);
+
+const startEditTag = (tag) => {
+	editingTag.value = tag;
+	editTagName.value = tag.name;
+};
+
+const cancelEditTag = () => {
+	editingTag.value = null;
+	editTagName.value = "";
+};
+
+const handleUpdateTag = async () => {
+	const name = editTagName.value.trim().toLowerCase();
+	if (!name || name === editingTag.value.name) {
+		cancelEditTag();
+		return;
+	}
+	try {
+		await circleStore.updateTag(props.id, editingTag.value.id, name);
+		toast.success(`Tag renamed to #${name}`);
+		editingTag.value = null;
+	} catch (err) {
+		toast.error("Failed to rename tag");
+	}
+};
+
+const startMergeTag = (tag) => {
+	mergingTag.value = tag;
+	mergeTargetTagId.value = "";
+};
+
+const handleMergeTag = async () => {
+	if (!mergeTargetTagId.value) return;
+	try {
+		await circleStore.mergeTags(props.id, mergingTag.value.id, mergeTargetTagId.value);
+		toast.success("Tags merged successfully");
+		mergingTag.value = null;
+	} catch (err) {
+		toast.error("Failed to merge tags");
+	}
+};
+
+const startDeleteTag = (tag) => {
+	deletingTag.value = tag;
+};
+
+const handleDeleteTag = async () => {
+	try {
+		await circleStore.deleteTag(props.id, deletingTag.value.id);
+		toast.success("Tag and all its posts deleted");
+		deletingTag.value = null;
+	} catch (err) {
+		toast.error("Failed to delete tag");
+	}
+};
+
 const syncSettings = () => {
 	if (circleStore.activeCircle) {
 		settings.value = {
@@ -52,7 +113,6 @@ const applyPalette = (palette) => {
 	if (palette !== "violet") {
 		document.body.classList.add(`palette-${palette}`);
 	}
-	// Persist per-circle in localStorage
 	localStorage.setItem(`circle-palette-${props.id}`, palette);
 };
 
@@ -90,6 +150,12 @@ const clearAllInactive = async () => {
 	} catch (err) {
 		toast.error("Failed to clear some invites");
 	}
+};
+
+const copyInviteLink = (code) => {
+	const url = `${window.location.origin}/join/${code}`;
+	navigator.clipboard.writeText(url);
+	toast.success("Invite link copied to clipboard!");
 };
 
 const adminAddTag = async () => {
@@ -216,6 +282,12 @@ const formatDate = (dateStr) => new Date(dateStr).toLocaleString();
 					<div style="display: flex; flex-direction: column; gap: 0.25rem">
 						<div style="display: flex; align-items: center; gap: 0.5rem">
 							<code class="invite-code">{{ invite.code }}</code>
+							<button
+								class="btn-icon"
+								style="font-size: var(--text-base)"
+								:title="'Copy invite link'"
+								@click="copyInviteLink(invite.code)"
+							>🔗</button>
 							<span style="font-size: var(--text-xs); color: var(--fg-3)">
 								grants {{ invite.role_to_grant }} · Issued by {{ invite.created_by }}
 							</span>
@@ -261,18 +333,51 @@ const formatDate = (dateStr) => new Date(dateStr).toLocaleString();
 				<input v-model="adminNewTagName" placeholder="New tag name" style="flex: 1" />
 				<button class="btn btn-primary" @click="adminAddTag">Add Tag</button>
 			</div>
-			<div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-top: 0.5rem">
+
+			<div style="display: flex; flex-direction: column; gap: 0.375rem; padding-top: 0.5rem">
 				<div
 					v-for="tag in circleStore.tags"
 					:key="tag.id"
-					style="display: flex; align-items: center; gap: 0.25rem; background: var(--bg-sunken); border: 1px solid var(--border); padding: 0.375rem 0.75rem; border-radius: var(--r-lg)"
+					class="tag-manage-row"
 				>
-					<span :style="tag.is_pinned ? 'color: var(--accent)' : ''">#{{ tag.name }}</span>
-					<button
-						class="btn btn-ghost btn-sm"
-						style="padding: 0 0.25rem"
-						@click="togglePin(tag.id, !tag.is_pinned)"
-					>{{ tag.is_pinned ? "Unpin" : "Pin" }}</button>
+					<div style="display: flex; align-items: center; gap: 0.625rem">
+						<span :style="tag.is_pinned ? 'color: var(--accent); font-size: var(--text-lg)' : 'color: var(--fg-3); font-size: var(--text-lg)'">#</span>
+
+						<div v-if="editingTag?.id === tag.id" style="display: flex; align-items: center; gap: 0.375rem">
+							<input
+								v-model="editTagName"
+								v-focus
+								style="padding: 0.2rem 0.5rem; font-size: var(--text-sm); width: 140px"
+								@keyup.enter="handleUpdateTag"
+								@keyup.esc="cancelEditTag"
+							/>
+							<button class="btn btn-primary btn-sm" @click="handleUpdateTag">Save</button>
+							<button class="btn btn-ghost btn-sm" @click="cancelEditTag">Cancel</button>
+						</div>
+						<div v-else>
+							<span :style="tag.is_pinned ? 'font-weight: 700; color: var(--accent)' : 'font-weight: 700'">
+								{{ tag.name }}
+							</span>
+							<span style="font-size: 10px; color: var(--fg-3); margin-left: 0.5rem; text-transform: uppercase; font-weight: 700">
+								{{ tag.use_count }} posts
+							</span>
+						</div>
+					</div>
+
+					<div class="tag-manage-row__actions">
+						<button class="btn-icon" :title="tag.is_pinned ? 'Unpin' : 'Pin'" @click="togglePin(tag.id, !tag.is_pinned)">
+							{{ tag.is_pinned ? "📌" : "📍" }}
+						</button>
+						<button class="btn-icon" title="Rename" @click="startEditTag(tag)">✏️</button>
+						<button class="btn-icon" title="Merge into another tag" @click="startMergeTag(tag)">🔄</button>
+						<button
+							v-if="isAdmin"
+							class="btn-icon"
+							style="color: var(--danger)"
+							title="Delete tag and all its posts"
+							@click="startDeleteTag(tag)"
+						>🗑️</button>
+					</div>
 				</div>
 			</div>
 		</section>
@@ -312,6 +417,69 @@ const formatDate = (dateStr) => new Date(dateStr).toLocaleString();
 				</div>
 			</div>
 		</section>
+	</div>
+
+	<!-- Merge Tag Modal -->
+	<div v-if="mergingTag" class="modal-backdrop" @click.self="mergingTag = null">
+		<div class="modal">
+			<div class="modal__header">
+				<h2>Merge Tag #{{ mergingTag.name }}</h2>
+				<button class="btn-icon" @click="mergingTag = null">✕</button>
+			</div>
+			<p style="font-size: var(--text-sm); color: var(--fg-2)">
+				This will move all posts from
+				<strong>#{{ mergingTag.name }}</strong> to another tag and then delete
+				<strong>#{{ mergingTag.name }}</strong>.
+			</p>
+			<div class="field">
+				<label class="label-uppercase">Target Tag</label>
+				<select v-model="mergeTargetTagId">
+					<option value="" disabled>Select a tag to merge into</option>
+					<option
+						v-for="tag in circleStore.tags.filter((t) => t.id !== mergingTag.id)"
+						:key="tag.id"
+						:value="tag.id"
+					>#{{ tag.name }} ({{ tag.use_count }} posts)</option>
+				</select>
+			</div>
+			<div class="form-actions">
+				<button class="btn btn-ghost" @click="mergingTag = null">Cancel</button>
+				<button class="btn btn-primary" :disabled="!mergeTargetTagId" @click="handleMergeTag">
+					Merge Tags
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Delete Tag Modal -->
+	<div v-if="deletingTag" class="modal-backdrop" @click.self="deletingTag = null">
+		<div class="modal" style="border-color: var(--error-border)">
+			<div class="modal__header">
+				<h2 style="color: var(--danger)">⚠️ Delete Tag #{{ deletingTag.name }}?</h2>
+				<button class="btn-icon" @click="deletingTag = null">✕</button>
+			</div>
+			<div style="background: var(--danger-bg); border: 1px solid var(--error-border); border-radius: var(--r-md); padding: 1rem">
+				<p style="font-weight: 700; color: var(--error-fg); margin-bottom: 0.5rem">
+					WARNING: This action is irreversible!
+				</p>
+				<p style="font-size: var(--text-sm); color: var(--error-fg)">
+					Deleting this tag will also <u>permanently delete all posts and threads</u> that belong to it.
+				</p>
+			</div>
+			<p style="font-size: var(--text-sm); color: var(--fg-2)">
+				If you want to keep the posts, you should
+				<button
+					class="btn btn-ghost btn-sm"
+					style="color: var(--accent); display: inline"
+					@click="startMergeTag(deletingTag); deletingTag = null"
+				>merge this tag</button>
+				into another tag instead.
+			</p>
+			<div class="form-actions">
+				<button class="btn btn-ghost" @click="deletingTag = null">Cancel</button>
+				<button class="btn btn-danger" @click="handleDeleteTag">Delete Permanently</button>
+			</div>
+		</div>
 	</div>
 
 	<InviteModal

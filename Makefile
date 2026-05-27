@@ -53,8 +53,6 @@ dev: infra
 	@echo "Run 'make dev-backend' and 'make dev-frontend' in separate terminals."
 	@echo "Or use a terminal multiplexer like tmux."
 
-build: build-backend build-frontend
-
 db-logs:
 	docker-compose logs -f db
 

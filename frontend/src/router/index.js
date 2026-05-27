@@ -8,6 +8,7 @@ import UserSettings from "../views/UserSettings.vue";
 import RequestReset from "../views/RequestReset.vue";
 import ResetPassword from "../views/ResetPassword.vue";
 import VerifyEmail from "../views/VerifyEmail.vue";
+import InviteView from "../views/InviteView.vue";
 import CirclePosts from "../views/circle/CirclePosts.vue";
 import CircleChat from "../views/circle/CircleChat.vue";
 import CircleThread from "../views/circle/CircleThread.vue";
@@ -21,6 +22,7 @@ const routes = [
 	{ path: "/request-reset", component: RequestReset },
 	{ path: "/reset-password", component: ResetPassword },
 	{ path: "/verify-email", component: VerifyEmail },
+	{ path: "/join/:code", component: InviteView },
 	{
 		path: "/",
 		component: Home,
@@ -95,6 +97,11 @@ router.beforeEach(async (to, from, next) => {
 		"/reset-password",
 		"/verify-email",
 	];
+
+	if (to.path.startsWith("/join/")) {
+		next();
+		return;
+	}
 	const authRequired = to.meta.requiresAuth;
 
 	if (!auth.user && !publicPages.includes(to.path)) {

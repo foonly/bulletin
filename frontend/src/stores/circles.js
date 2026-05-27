@@ -40,6 +40,20 @@ export const useCircleStore = defineStore("circles", {
 			await axios.post(`/api/circles/${circleId}/tags`, { name });
 			await this.fetchTags(circleId);
 		},
+		async updateTag(circleId, tagId, name) {
+			await axios.put(`/api/circles/${circleId}/tags/${tagId}`, { name });
+			await this.fetchTags(circleId);
+		},
+		async deleteTag(circleId, tagId) {
+			await axios.delete(`/api/circles/${circleId}/tags/${tagId}`);
+			await this.fetchTags(circleId);
+		},
+		async mergeTags(circleId, sourceTagId, targetTagId) {
+			await axios.post(`/api/circles/${circleId}/tags/${sourceTagId}/merge`, {
+				target_tag_id: targetTagId,
+			});
+			await this.fetchTags(circleId);
+		},
 		async pinTag(circleId, tagId, isPinned) {
 			await axios.post(`/api/circles/${circleId}/tags/${tagId}/pin`, {
 				is_pinned: isPinned,
@@ -99,6 +113,17 @@ export const useCircleStore = defineStore("circles", {
 		},
 		async deleteMember(circleId, userId) {
 			await axios.delete(`/api/circles/${circleId}/members/${userId}`);
+		},
+		async joinCircle(inviteCode) {
+			const res = await axios.post("/api/circles/join", {
+				invite_code: inviteCode,
+			});
+			await this.fetchCircles();
+			return res.data;
+		},
+		async getInviteInfo(inviteCode) {
+			const res = await axios.get(`/api/invites/${inviteCode}`);
+			return res.data;
 		},
 		addChatMessage(msg) {
 			this.chatMessages.push(msg);
