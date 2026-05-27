@@ -1,5 +1,8 @@
 <template>
-	<div class="app-layout">
+	<div class="app-layout" :class="{ 'sidebar-open': ui.sidebarOpen }">
+		<!-- Sidebar overlay (mobile) -->
+		<div class="sidebar-overlay" @click="ui.closeSidebar"></div>
+
 		<!-- Circle rail -->
 		<nav class="app-sidebar">
 			<div
@@ -96,9 +99,41 @@
 		<!-- Main content area -->
 		<div class="app-main">
 			<header class="app-header">
-				<router-link to="/" class="app-header__title">{{
-					siteName
-				}}</router-link>
+				<div class="app-header__left">
+					<button class="btn-icon mobile-only" @click="ui.toggleSidebar">
+						<svg
+							v-if="!ui.sidebarOpen"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M4 6h16M4 12h16M4 18h16"
+							/>
+						</svg>
+						<svg
+							v-else
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M6 18L18 6M6 6l12 12"
+							/>
+						</svg>
+					</button>
+					<router-link to="/" class="app-header__title">{{
+						siteName
+					}}</router-link>
+				</div>
 				<nav class="app-header__nav">
 					<router-link to="/settings">{{ auth.user?.username }}</router-link>
 					<button class="app-header__logout" @click="handleLogout">
@@ -108,96 +143,96 @@
 			</header>
 
 			<main class="app-content">
-				<div class="app-content-inner">
-					<router-view></router-view>
+				<router-view v-slot="{ Component }">
+					<component :is="Component" />
+				</router-view>
 
-					<!-- Dashboard (shown when at root path) -->
-					<div v-if="route.path === '/'" class="home-dashboard">
-						<div class="home-dashboard__header">
-							<h1>Your Circles</h1>
-							<div style="display: flex; gap: 0.75rem">
-								<button class="btn btn-secondary" @click="showJoinModal = true">
-									# Join Circle
-								</button>
-								<button class="btn btn-primary" @click="showCreateModal = true">
-									+ Create Circle
-								</button>
-							</div>
+				<!-- Dashboard (shown when at root path) -->
+				<div v-if="route.path === '/'" class="home-dashboard">
+					<div class="home-dashboard__header">
+						<h1>Your Circles</h1>
+						<div style="display: flex; gap: 0.75rem">
+							<button class="btn btn-secondary" @click="showJoinModal = true">
+								# Join Circle
+							</button>
+							<button class="btn btn-primary" @click="showCreateModal = true">
+								+ Create Circle
+							</button>
 						</div>
+					</div>
 
-						<div class="circles-grid">
-							<div
-								v-for="circle in circleStore.circles"
-								:key="circle.id"
-								class="circle-card"
-								@click="selectCircle(circle)"
-							>
-								<div class="circle-card__header">
-									<div class="circle-card__avatar">
-										{{ circle.name ? circle.name[0].toUpperCase() : "?" }}
+					<div class="circles-grid">
+						<div
+							v-for="circle in circleStore.circles"
+							:key="circle.id"
+							class="circle-card"
+							@click="selectCircle(circle)"
+						>
+							<div class="circle-card__header">
+								<div class="circle-card__avatar">
+									{{ circle.name ? circle.name[0].toUpperCase() : "?" }}
+								</div>
+								<div class="circle-card__meta">
+									<span class="role-badge">{{ circle.role }}</span>
+									<span style="font-size: var(--text-xs); color: var(--fg-3)">
+										{{ circle.member_count }} members
+									</span>
+								</div>
+							</div>
+
+							<h2>{{ circle.name }}</h2>
+							<p class="circle-card__desc">
+								{{ circle.description || "No description provided." }}
+							</p>
+
+							<div class="circle-card__stats">
+								<div class="circle-card__stat-row">
+									<div
+										class="circle-card__stat"
+										:title="circle.unread_post_count + ' unread posts'"
+									>
+										<span>📰</span>
+										<span
+											class="circle-card__stat-count"
+											:class="{ 'has-unread': circle.unread_post_count > 0 }"
+											>{{ circle.unread_post_count }}</span
+										>
 									</div>
-									<div class="circle-card__meta">
-										<span class="role-badge">{{ circle.role }}</span>
-										<span style="font-size: var(--text-xs); color: var(--fg-3)">
-											{{ circle.member_count }} members
-										</span>
+									<div
+										class="circle-card__stat"
+										:title="circle.unread_chat_count + ' unread messages'"
+									>
+										<span>💬</span>
+										<span
+											class="circle-card__stat-count"
+											:class="{ 'has-unread': circle.unread_chat_count > 0 }"
+											>{{ circle.unread_chat_count }}</span
+										>
 									</div>
 								</div>
 
-								<h2>{{ circle.name }}</h2>
-								<p class="circle-card__desc">
-									{{ circle.description || "No description provided." }}
-								</p>
-
-								<div class="circle-card__stats">
-									<div class="circle-card__stat-row">
-										<div
-											class="circle-card__stat"
-											:title="circle.unread_post_count + ' unread posts'"
+								<div v-if="circle.last_post_at">
+									<div class="circle-card__activity-label">Last Activity</div>
+									<div class="circle-card__activity-row">
+										<span
+											class="circle-card__activity-title"
+											:title="circle.last_post_title"
+											>{{ circle.last_post_title || "New post" }}</span
 										>
-											<span>📰</span>
-											<span
-												class="circle-card__stat-count"
-												:class="{ 'has-unread': circle.unread_post_count > 0 }"
-												>{{ circle.unread_post_count }}</span
-											>
-										</div>
-										<div
-											class="circle-card__stat"
-											:title="circle.unread_chat_count + ' unread messages'"
-										>
-											<span>💬</span>
-											<span
-												class="circle-card__stat-count"
-												:class="{ 'has-unread': circle.unread_chat_count > 0 }"
-												>{{ circle.unread_chat_count }}</span
-											>
-										</div>
+										<span class="circle-card__activity-time">
+											{{ formatDate(circle.last_post_at) }}
+										</span>
 									</div>
-
-									<div v-if="circle.last_post_at">
-										<div class="circle-card__activity-label">Last Activity</div>
-										<div class="circle-card__activity-row">
-											<span
-												class="circle-card__activity-title"
-												:title="circle.last_post_title"
-												>{{ circle.last_post_title || "New post" }}</span
-											>
-											<span class="circle-card__activity-time">
-												{{ formatDate(circle.last_post_at) }}
-											</span>
-										</div>
-									</div>
-									<div
-										v-else
-										style="
-											font-size: 10px;
-											font-style: italic;
-											color: var(--fg-3);
-										"
-									>
-										No recent activity
-									</div>
+								</div>
+								<div
+									v-else
+									style="
+										font-size: 10px;
+										font-style: italic;
+										color: var(--fg-3);
+									"
+								>
+									No recent activity
 								</div>
 							</div>
 						</div>
@@ -212,11 +247,13 @@
 import { onMounted, onUnmounted, computed, watch, ref } from "vue";
 import { useAuthStore } from "../stores/auth";
 import { useCircleStore } from "../stores/circles";
+import { useUIStore } from "../stores/ui";
 import { useToastStore } from "../stores/toast";
 import { useRouter, useRoute } from "vue-router";
 
 const auth = useAuthStore();
 const circleStore = useCircleStore();
+const ui = useUIStore();
 const toast = useToastStore();
 const router = useRouter();
 const route = useRoute();
@@ -269,6 +306,17 @@ const syncActiveCircle = () => {
 const loadingCircles = ref(false);
 let pollInterval = null;
 
+watch(
+	() => ui.sidebarOpen,
+	(open) => {
+		if (open) {
+			document.body.classList.add("lock-scroll");
+		} else {
+			document.body.classList.remove("lock-scroll");
+		}
+	},
+);
+
 onMounted(async () => {
 	if (circleStore.circles.length === 0 && !loadingCircles.value) {
 		loadingCircles.value = true;
@@ -299,6 +347,7 @@ watch(() => route.params.id, syncActiveCircle);
 const selectCircle = (circle) => {
 	circleStore.activeCircle = circle;
 	applyPalette(circle);
+	ui.closeSidebar();
 	router.push(`/circle/${circle.id}`);
 };
 

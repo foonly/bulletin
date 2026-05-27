@@ -48,15 +48,9 @@ const addCustomTag = () => {
 </script>
 
 <template>
-	<div style="max-width: var(--content-max); margin: 0 auto; width: 100%">
+	<div class="container-new-thread">
 		<div class="section-card">
-			<div
-				style="
-					display: flex;
-					align-items: center;
-					justify-content: space-between;
-				"
-			>
+			<div class="section-card__header">
 				<h3>Start a new thread</h3>
 				<button
 					class="btn-icon"
@@ -78,8 +72,7 @@ const addCustomTag = () => {
 				<div class="label-meta">
 					<label class="label-uppercase">Content</label>
 					<button
-						class="btn btn-ghost btn-sm"
-						style="color: var(--accent)"
+						class="btn btn-ghost btn-sm text-accent"
 						@click="showPreview = !showPreview"
 					>
 						{{ showPreview ? "Edit Content" : "Show Preview" }}
@@ -87,14 +80,7 @@ const addCustomTag = () => {
 				</div>
 				<div
 					v-if="showPreview"
-					class="markdown-content"
-					style="
-						min-height: 200px;
-						background: var(--bg-sunken);
-						padding: 0.75rem;
-						border-radius: var(--r-md);
-						border: 1px solid var(--border);
-					"
+					class="markdown-content markdown-content--preview"
 					v-html="renderMarkdown(newPost.content)"
 				></div>
 				<textarea
@@ -107,14 +93,7 @@ const addCustomTag = () => {
 
 			<div class="field">
 				<label class="label-uppercase">Tags (at least one required)</label>
-				<div
-					style="
-						display: flex;
-						flex-wrap: wrap;
-						gap: 0.5rem;
-						margin-top: 0.375rem;
-					"
-				>
+				<div class="tag-chip-container">
 					<button
 						v-for="tag in circleStore.tags"
 						:key="tag.id"
@@ -130,24 +109,11 @@ const addCustomTag = () => {
 						v-model="newTagName"
 						@keyup.enter="addCustomTag"
 						placeholder="Add custom tag…"
-						style="
-							width: 140px;
-							font-size: var(--text-xs);
-							padding: 0.2em 0.625em;
-							border-radius: var(--r-pill);
-						"
+						class="tag-input"
 					/>
 				</div>
 
-				<div
-					v-if="newPost.tags.length > 0"
-					style="
-						display: flex;
-						flex-wrap: wrap;
-						gap: 0.375rem;
-						margin-top: 0.5rem;
-					"
-				>
+				<div v-if="newPost.tags.length > 0" class="tag-chip-container-selected">
 					<span
 						v-for="tag in newPost.tags"
 						:key="tag"

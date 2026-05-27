@@ -1,7 +1,7 @@
 <template>
 	<div class="circle-layout">
 		<!-- Error state -->
-		<div v-if="error" class="error-state" style="flex: 1">
+		<div v-if="error" class="error-state">
 			<div class="error-state__icon">🚫</div>
 			<h2>{{ error.title }}</h2>
 			<p>{{ error.message }}</p>
@@ -185,7 +185,7 @@
 				</div>
 
 				<div class="circle-sidebar__footer">
-					<router-link to="/">
+					<router-link to="/" @click="ui.closeSidebar">
 						<span>←</span>
 						<span>Dashboard</span>
 					</router-link>
@@ -212,6 +212,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useCircleStore } from "../stores/circles";
 import { useAuthStore } from "../stores/auth";
+import { useUIStore } from "../stores/ui";
 import { useToastStore } from "../stores/toast";
 import axios from "axios";
 import { useRouter, useRoute } from "vue-router";
@@ -221,6 +222,7 @@ import { showBrowserNotification } from "../utils/notifications";
 const props = defineProps(["id"]);
 const circleStore = useCircleStore();
 const auth = useAuthStore();
+const ui = useUIStore();
 const toast = useToastStore();
 const router = useRouter();
 const route = useRoute();
@@ -373,4 +375,10 @@ onUnmounted(() => {
 });
 
 watch(() => props.id, loadCircleData);
+watch(
+	() => route.fullPath,
+	() => {
+		ui.closeSidebar();
+	},
+);
 </script>

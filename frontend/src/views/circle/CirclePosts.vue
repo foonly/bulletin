@@ -45,24 +45,11 @@ watch(() => props.id, loadThreads);
 
 <template>
 	<div class="thread-list">
-		<div
-			style="
-				margin-bottom: 1.25rem;
-				display: flex;
-				justify-content: space-between;
-				align-items: flex-start;
-			"
-		>
+		<div class="thread-list__header">
 			<div>
 				<h1 v-if="!route.query.tag">Circle Dashboard</h1>
 				<h1 v-else>#{{ route.query.tag }}</h1>
-				<p
-					style="
-						font-size: var(--text-sm);
-						color: var(--fg-3);
-						margin-top: 0.25rem;
-					"
-				>
+				<p class="thread-list__header-meta">
 					<template v-if="!route.query.tag"
 						>Showing threads with unread activity.</template
 					>
