@@ -1004,13 +1004,29 @@ func (h *Handler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListInvites(w http.ResponseWriter, r *http.Request) {
 	circleIDStr := chi.URLParam(r, "circleID")
 	circleID, _ := uuid.Parse(circleIDStr)
+	userID := r.Context().Value("user_id").(uuid.UUID)
 
-	rows, err := h.DB.Query(r.Context(),
-		`SELECT i.id, i.code, i.role_to_grant, i.max_uses, i.used_count, i.expires_at, i.created_at, u.username
+	// Get user role
+	var role models.CircleRole
+	err := h.DB.QueryRow(r.Context(), "SELECT role FROM circle_members WHERE circle_id = $1 AND user_id = $2", circleID, userID).Scan(&role)
+	if err != nil {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	query := `SELECT i.id, i.code, i.role_to_grant, i.max_uses, i.used_count, i.expires_at, i.created_at, u.username
 		 FROM invites i
 		 JOIN users u ON i.created_by_id = u.id
-		 WHERE i.circle_id = $1
-		 ORDER BY i.created_at DESC`, circleID)
+		 WHERE i.circle_id = $1`
+
+	args := []interface{}{circleID}
+	if role != "admin" && role != "mod" {
+		query += " AND i.created_by_id = $2"
+		args = append(args, userID)
+	}
+	query += " ORDER BY i.created_at DESC"
+
+	rows, err := h.DB.Query(r.Context(), query, args...)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

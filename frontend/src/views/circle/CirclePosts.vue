@@ -77,31 +77,36 @@ watch(() => props.id, loadThreads);
 			@click="openThread(thread.id)"
 		>
 			<div class="thread-item__header">
-				<div>
+				<div class="thread-item__header-left">
 					<span class="thread-item__author">{{ thread.author_name }}</span>
 					<span class="thread-item__date">{{
 						formatDate(thread.created_at)
 					}}</span>
 				</div>
-				<span v-if="thread.unread_count > 0" class="new-pill">
-					{{ thread.unread_count }} new
-				</span>
+				<div class="thread-item__header-right">
+					<div class="thread-item__tags">
+						<span
+							v-for="tag in thread.tags"
+							:key="tag"
+							class="tag-chip tag-chip--sm"
+							:class="{ active: route.query.tag === tag }"
+							@click.stop="filterByTag(tag)"
+							>#{{ tag }}</span
+						>
+					</div>
+					<span v-if="thread.unread_count > 0" class="new-pill">
+						{{ thread.unread_count }} new
+					</span>
+				</div>
 			</div>
 
-			<h3>{{ thread.title }}</h3>
-
-			<div class="thread-item__tags">
-				<span
-					v-for="tag in thread.tags"
-					:key="tag"
-					class="tag-chip"
-					:class="{ active: route.query.tag === tag }"
-					@click.stop="filterByTag(tag)"
-					>#{{ tag }}</span
-				>
+			<div class="thread-item__title-row">
+				<h3 class="thread-item__title">{{ thread.title }}</h3>
+				<span class="thread-item__divider">·</span>
+				<span class="thread-item__preview-inline">{{
+					stripMarkdown(thread.content)
+				}}</span>
 			</div>
-
-			<p class="thread-item__preview">{{ stripMarkdown(thread.content) }}</p>
 
 			<div class="thread-item__footer">
 				<div style="display: flex; gap: 1rem">

@@ -13,6 +13,7 @@ import CirclePosts from "../views/circle/CirclePosts.vue";
 import CircleChat from "../views/circle/CircleChat.vue";
 import CircleThread from "../views/circle/CircleThread.vue";
 import CircleNewThread from "../views/circle/CircleNewThread.vue";
+import CircleInvites from "../views/circle/CircleInvites.vue";
 import CircleSettings from "../views/circle/CircleSettings.vue";
 import CircleSearch from "../views/circle/CircleSearch.vue";
 
@@ -74,6 +75,12 @@ const routes = [
 						path: "settings",
 						name: "circle-settings",
 						component: CircleSettings,
+						props: true,
+					},
+					{
+						path: "invites",
+						name: "circle-invites",
+						component: CircleInvites,
 						props: true,
 					},
 				],

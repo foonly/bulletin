@@ -55,6 +55,8 @@
 						<router-link
 							:to="{ name: 'circle-chat', params: { id } }"
 							:class="['nav-item', { active: $route.name === 'circle-chat' }]"
+							active-class=""
+							exact-active-class=""
 						>
 							<span>💬</span>
 							<span>Chat</span>
@@ -75,6 +77,8 @@
 										$route.name === 'circle-search',
 								},
 							]"
+							active-class=""
+							exact-active-class=""
 						>
 							<span>📊</span>
 							<span>{{
@@ -108,6 +112,8 @@
 												$route.query.tag === tag.name,
 										},
 									]"
+									active-class=""
+									exact-active-class=""
 									style="flex: 1"
 								>
 									<span class="truncate">
@@ -147,24 +153,7 @@
 							<span class="chevron" :class="{ open: membersExpanded }">▼</span>
 						</div>
 
-						<div
-							v-if="membersExpanded"
-							style="
-								margin-top: 0.375rem;
-								display: flex;
-								flex-direction: column;
-								gap: 0.25rem;
-							"
-						>
-							<button
-								v-if="canInvite"
-								class="invite-btn"
-								@click.stop="showInviteModal = true"
-							>
-								<span>✉️</span>
-								<span>Invite People</span>
-							</button>
-
+						<div v-if="membersExpanded" class="circle-sidebar__members">
 							<div class="member-list">
 								<div
 									v-for="member in members"
@@ -180,6 +169,16 @@
 									<span class="member-name">{{ member.username }}</span>
 								</div>
 							</div>
+
+							<router-link
+								v-if="canInvite"
+								:to="{ name: 'circle-invites', params: { id } }"
+								class="invite-btn"
+								@click="ui.closeSidebar"
+							>
+								<span>✉️</span>
+								<span>Invite People</span>
+							</router-link>
 						</div>
 					</div>
 				</div>
@@ -199,12 +198,6 @@
 				</router-view>
 			</div>
 		</template>
-		<InviteModal
-			:show="showInviteModal"
-			:id="id"
-			@close="showInviteModal = false"
-			@created="circleStore.fetchInvites(id)"
-		/>
 	</div>
 </template>
 
@@ -216,7 +209,6 @@ import { useUIStore } from "../stores/ui";
 import { useToastStore } from "../stores/toast";
 import axios from "axios";
 import { useRouter, useRoute } from "vue-router";
-import InviteModal from "../components/InviteModal.vue";
 import { showBrowserNotification } from "../utils/notifications";
 
 const props = defineProps(["id"]);
@@ -231,7 +223,6 @@ const members = ref([]);
 const onlineUserIds = ref(new Set());
 const error = ref(null);
 const searchQuery = ref("");
-const showInviteModal = ref(false);
 const membersExpanded = ref(false);
 
 const handleSearch = () => {
@@ -290,9 +281,6 @@ const loadCircleData = async () => {
 		circleStore.activeCircle = circle;
 		await circleStore.fetchChatHistory(props.id);
 		await circleStore.fetchTags(props.id);
-		if (canManage.value) {
-			await circleStore.fetchInvites(props.id);
-		}
 		const res = await axios.get(`/api/circles/${props.id}/members`);
 		members.value = res.data;
 

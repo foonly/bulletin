@@ -44,7 +44,9 @@ watch(() => route.query.q, performSearch);
 
 <template>
 	<div style="display: flex; flex-direction: column; gap: 1.5rem">
-		<div style="display: flex; align-items: center; justify-content: space-between">
+		<div
+			style="display: flex; align-items: center; justify-content: space-between"
+		>
 			<h1>Search Results for "{{ route.query.q }}"</h1>
 			<span style="font-size: var(--text-sm); color: var(--fg-3)">
 				{{ results.length }} results found
@@ -64,16 +66,27 @@ watch(() => route.query.q, performSearch);
 				@click="goToResult(result)"
 			>
 				<div class="thread-item__header">
-					<div>
+					<div class="thread-item__header-left">
 						<span class="thread-item__author">{{ result.author_name }}</span>
-						<span class="thread-item__date">{{ formatDate(result.created_at) }}</span>
+						<span class="thread-item__date">{{
+							formatDate(result.created_at)
+						}}</span>
 					</div>
-					<span v-if="result.parent_id" class="role-badge">Reply</span>
-					<span v-else class="badge badge-accent">Thread</span>
+					<div class="thread-item__header-right">
+						<span v-if="result.parent_id" class="role-badge">Reply</span>
+						<span v-else class="badge badge-accent">Thread</span>
+					</div>
 				</div>
 
-				<h3 v-if="result.title">{{ result.title }}</h3>
-				<p class="thread-item__preview">{{ stripMarkdown(result.content) }}</p>
+				<div class="thread-item__title-row">
+					<h3 v-if="result.title" class="thread-item__title">
+						{{ result.title }}
+					</h3>
+					<span v-if="result.title" class="thread-item__divider">·</span>
+					<span class="thread-item__preview-inline">{{
+						stripMarkdown(result.content)
+					}}</span>
+				</div>
 			</div>
 		</div>
 
