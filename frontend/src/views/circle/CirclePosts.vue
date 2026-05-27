@@ -30,10 +30,7 @@ const filterByTag = (tagName) => {
 };
 
 const filteredThreads = computed(() => {
-	if (route.query.tag) {
-		return circleStore.threads;
-	}
-	// On dashboard (no tag), only show threads with unread posts
+	if (route.query.tag) return circleStore.threads;
 	return circleStore.threads.filter((t) => t.unread_count > 0);
 });
 
@@ -47,92 +44,63 @@ watch(() => props.id, loadThreads);
 </script>
 
 <template>
-	<div class="space-y-4">
-		<div v-if="!route.query.tag" class="mb-6">
-			<h1 class="text-2xl font-bold">Circle Dashboard</h1>
-			<p class="text-sm text-gray-500">Showing threads with unread activity.</p>
-		</div>
-		<div v-else class="mb-6">
-			<h1 class="text-2xl font-bold">#{{ route.query.tag }}</h1>
-			<p class="text-sm text-gray-500">
-				Showing all threads tagged with #{{ route.query.tag }}.
+	<div class="thread-list">
+		<div style="margin-bottom: 1.25rem">
+			<h1 v-if="!route.query.tag">Circle Dashboard</h1>
+			<h1 v-else>#{{ route.query.tag }}</h1>
+			<p style="font-size: var(--text-sm); color: var(--fg-3); margin-top: 0.25rem">
+				<template v-if="!route.query.tag">Showing threads with unread activity.</template>
+				<template v-else>Showing all threads tagged with #{{ route.query.tag }}.</template>
 			</p>
 		</div>
 
 		<div
 			v-for="thread in filteredThreads"
 			:key="thread.id"
+			class="thread-item"
+			:class="{ unread: thread.unread_count > 0 }"
 			@click="openThread(thread.id)"
-			:class="[
-				'bg-gray-800 p-4 rounded-lg border cursor-pointer hover:border-purple-500 transition-all duration-500',
-				thread.unread_count > 0
-					? 'border-l-4 border-l-purple-500 bg-purple-500/5 border-gray-700'
-					: 'border-gray-700',
-			]"
 		>
-			<div class="flex items-center justify-between mb-2 text-xs">
-				<div class="flex items-center space-x-2">
-					<span class="font-bold text-purple-400">{{
-						thread.author_name
-					}}</span>
-					<span class="text-gray-500">{{ formatDate(thread.created_at) }}</span>
+			<div class="thread-item__header">
+				<div>
+					<span class="thread-item__author">{{ thread.author_name }}</span>
+					<span class="thread-item__date">{{ formatDate(thread.created_at) }}</span>
 				</div>
-				<div
-					v-if="thread.unread_count > 0"
-					class="bg-red-500 text-white px-2 py-0.5 rounded-full font-bold"
-				>
+				<span v-if="thread.unread_count > 0" class="new-pill">
 					{{ thread.unread_count }} new
-				</div>
+				</span>
 			</div>
-			<h3 class="font-bold text-lg mb-1">{{ thread.title }}</h3>
-			<div class="flex flex-wrap gap-1 mb-2">
+
+			<h3>{{ thread.title }}</h3>
+
+			<div class="thread-item__tags">
 				<span
 					v-for="tag in thread.tags"
 					:key="tag"
+					class="tag-chip"
+					:class="{ active: route.query.tag === tag }"
 					@click.stop="filterByTag(tag)"
-					:class="[
-						'text-[10px] px-1.5 py-0.5 rounded transition-colors cursor-pointer',
-						route.query.tag === tag
-							? 'bg-purple-600 text-white'
-							: 'bg-gray-700 text-gray-300 hover:bg-purple-600 hover:text-white',
-					]"
-				>
-					#{{ tag }}
-				</span>
+				>#{{ tag }}</span>
 			</div>
-			<p
-				class="text-gray-400 text-sm line-clamp-4 overflow-hidden"
-				style="
-					display: -webkit-box;
-					-webkit-line-clamp: 4;
-					-webkit-box-orient: vertical;
-				"
-			>
-				{{ stripMarkdown(thread.content) }}
-			</p>
 
-			<div
-				class="mt-4 flex items-center justify-between text-xs text-gray-500 border-t border-gray-700 pt-2"
-			>
-				<div class="flex items-center space-x-4">
+			<p class="thread-item__preview">{{ stripMarkdown(thread.content) }}</p>
+
+			<div class="thread-item__footer">
+				<div style="display: flex; gap: 1rem">
 					<span>{{ thread.reply_count }} replies</span>
-					<span v-if="thread.last_reply_at"
-						>Last reply: {{ formatDate(thread.last_reply_at) }}</span
-					>
+					<span v-if="thread.last_reply_at">Last reply: {{ formatDate(thread.last_reply_at) }}</span>
 				</div>
 			</div>
 		</div>
-		<div
-			v-if="filteredThreads.length === 0"
-			class="text-center py-20 text-gray-500 bg-gray-800/20 rounded-xl border border-dashed border-gray-700"
-		>
+
+		<div v-if="filteredThreads.length === 0" class="empty-state">
 			<template v-if="!route.query.tag">
-				<div class="text-4xl mb-4">✅</div>
-				<p class="font-bold text-gray-300">You're all caught up!</p>
-				<p class="text-sm mt-1">No unread threads in this circle.</p>
+				<div class="empty-state__icon">✅</div>
+				<h3>You're all caught up!</h3>
+				<p>No unread threads in this circle.</p>
 			</template>
 			<template v-else>
-				<div class="text-4xl mb-4">📭</div>
+				<div class="empty-state__icon">📭</div>
 				<p>No threads found with this tag.</p>
 			</template>
 		</div>

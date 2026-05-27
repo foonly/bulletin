@@ -1,234 +1,143 @@
 <template>
-	<div class="flex h-screen bg-gray-900 text-gray-100 overflow-hidden">
-		<!-- Sidebar -->
-		<div
-			class="w-20 bg-gray-950 flex flex-col items-center py-4 space-y-4 border-r border-gray-800"
-		>
+	<div class="app-layout">
+		<!-- Circle rail -->
+		<nav class="app-sidebar">
 			<div
 				v-for="circle in circleStore.circles"
 				:key="circle.id"
-				@click="selectCircle(circle)"
-				:class="[
-					'w-12 h-12 rounded-3xl cursor-pointer flex items-center justify-center font-bold text-xl transition-all hover:rounded-xl relative group',
-					activeCircle?.id === circle.id
-						? 'bg-purple-600 rounded-xl'
-						: 'bg-gray-800 hover:bg-purple-500',
-				]"
+				class="circle-icon"
+				:class="{ active: activeCircle?.id === circle.id }"
 				:title="circle.name"
+				@click="selectCircle(circle)"
 			>
-				{{
-					circle.name && circle.name.length > 0
-						? circle.name[0].toUpperCase()
-						: "?"
-				}}
-				<!-- Unread Badge -->
-				<div
-					v-if="circle.unread_count > 0"
-					class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-gray-950 font-bold px-1"
-				>
+				{{ circle.name?.length > 0 ? circle.name[0].toUpperCase() : "?" }}
+				<div v-if="circle.unread_count > 0" class="badge">
 					{{ circle.unread_count > 99 ? "99+" : circle.unread_count }}
 				</div>
+				<span class="tooltip">{{ circle.name }}</span>
+			</div>
 
-				<!-- Tooltip -->
-				<div
-					class="absolute left-16 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 border border-gray-700 shadow-xl"
-				>
-					{{ circle.name }}
-				</div>
-			</div>
-			<div
+			<button
+				class="circle-icon circle-icon--add"
+				:title="'Create circle'"
 				@click="showCreateModal = true"
-				class="w-12 h-12 rounded-3xl bg-gray-800 cursor-pointer flex items-center justify-center text-green-500 hover:bg-green-600 hover:text-white transition-all hover:rounded-xl"
-			>
-				+
-			</div>
-		</div>
+			>+</button>
+		</nav>
 
 		<!-- Create Circle Modal -->
-		<div
-			v-if="showCreateModal"
-			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-		>
-			<div
-				class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md border border-gray-700"
-			>
-				<div class="p-6 space-y-4">
-					<h2 class="text-xl font-bold">Create a New Circle</h2>
-					<div class="space-y-1">
-						<label class="text-xs text-gray-400 font-bold uppercase"
-							>Name</label
-						>
-						<input
-							v-model="newCircle.name"
-							placeholder="Circle name"
-							class="w-full bg-gray-900 border border-gray-700 p-2 rounded focus:outline-none focus:border-purple-500"
-						/>
-					</div>
-					<div class="space-y-1">
-						<label class="text-xs text-gray-400 font-bold uppercase"
-							>Description</label
-						>
-						<textarea
-							v-model="newCircle.description"
-							placeholder="What is this circle about?"
-							class="w-full bg-gray-900 border border-gray-700 p-2 rounded focus:outline-none focus:border-purple-500 h-24"
-						></textarea>
-					</div>
-					<div class="flex justify-end space-x-3 pt-2">
-						<button
-							@click="showCreateModal = false"
-							class="px-4 py-2 text-sm text-gray-400 hover:text-white transition"
-						>
-							Cancel
-						</button>
-						<button
-							@click="handleCreateCircle"
-							:disabled="!newCircle.name.trim()"
-							class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
-						>
-							Create Circle
-						</button>
-					</div>
+		<div v-if="showCreateModal" class="modal-backdrop" @click.self="showCreateModal = false">
+			<div class="modal">
+				<div class="modal__header">
+					<h2>Create a New Circle</h2>
+					<button class="btn-icon" @click="showCreateModal = false">✕</button>
+				</div>
+				<div class="field">
+					<label class="label-uppercase">Name</label>
+					<input v-model="newCircle.name" placeholder="Circle name" />
+				</div>
+				<div class="field">
+					<label class="label-uppercase">Description</label>
+					<textarea
+						v-model="newCircle.description"
+						placeholder="What is this circle about?"
+						style="height: 96px"
+					></textarea>
+				</div>
+				<div class="form-actions">
+					<button class="btn btn-ghost" @click="showCreateModal = false">Cancel</button>
+					<button
+						class="btn btn-primary"
+						@click="handleCreateCircle"
+						:disabled="!newCircle.name.trim()"
+					>Create Circle</button>
 				</div>
 			</div>
 		</div>
 
-		<!-- Main Content -->
-		<div class="flex-1 flex flex-col">
-			<header
-				class="h-12 border-b border-gray-800 flex items-center px-4 justify-between bg-gray-900"
-			>
-				<h2 class="font-bold text-lg text-gray-400">{{ siteName }}</h2>
-				<div class="flex items-center space-y-0 space-x-4">
-					<router-link
-						to="/settings"
-						class="text-sm text-gray-400 hover:text-purple-400"
-						>{{ auth.user?.username }}</router-link
-					>
-					<button
-						@click="handleLogout"
-						class="text-sm text-red-400 hover:underline"
-					>
-						Logout
-					</button>
-				</div>
+		<!-- Main content area -->
+		<div class="app-main">
+			<header class="app-header">
+				<span class="app-header__title">{{ siteName }}</span>
+				<nav class="app-header__nav">
+					<router-link to="/settings">{{ auth.user?.username }}</router-link>
+					<button class="app-header__logout" @click="handleLogout">Logout</button>
+				</nav>
 			</header>
 
-			<div class="flex-1 overflow-y-auto bg-gray-950/20">
+			<main class="app-content">
 				<router-view></router-view>
-				<div v-if="route.path === '/'" class="h-full p-8">
-					<div class="max-w-6xl mx-auto">
-						<div class="flex items-center justify-between mb-8">
-							<h1 class="text-3xl font-bold">Your Circles</h1>
-							<button
-								@click="showCreateModal = true"
-								class="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-bold transition flex items-center space-x-2"
-							>
-								<span>+</span>
-								<span>Create Circle</span>
-							</button>
-						</div>
 
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-							<div
-								v-for="circle in circleStore.circles"
-								:key="circle.id"
-								@click="selectCircle(circle)"
-								class="bg-gray-800 border border-gray-700 rounded-xl p-6 cursor-pointer hover:border-purple-500 transition-all hover:shadow-xl group"
-							>
-								<div class="flex items-start justify-between mb-4">
-									<div
-										class="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center font-bold text-2xl shadow-lg group-hover:scale-110 transition-transform"
-									>
-										{{ circle.name ? circle.name[0].toUpperCase() : "?" }}
-									</div>
-									<div class="flex flex-col items-end space-y-1">
+				<!-- Dashboard (shown when at root path) -->
+				<div v-if="route.path === '/'" class="home-dashboard">
+					<div class="home-dashboard__header">
+						<h1>Your Circles</h1>
+						<button class="btn btn-primary" @click="showCreateModal = true">
+							+ Create Circle
+						</button>
+					</div>
+
+					<div class="circles-grid">
+						<div
+							v-for="circle in circleStore.circles"
+							:key="circle.id"
+							class="circle-card"
+							@click="selectCircle(circle)"
+						>
+							<div class="circle-card__header">
+								<div class="circle-card__avatar">
+									{{ circle.name ? circle.name[0].toUpperCase() : "?" }}
+								</div>
+								<div class="circle-card__meta">
+									<span class="role-badge">{{ circle.role }}</span>
+									<span style="font-size: var(--text-xs); color: var(--fg-3)">
+										{{ circle.member_count }} members
+									</span>
+								</div>
+							</div>
+
+							<h2>{{ circle.name }}</h2>
+							<p class="circle-card__desc">
+								{{ circle.description || "No description provided." }}
+							</p>
+
+							<div class="circle-card__stats">
+								<div class="circle-card__stat-row">
+									<div class="circle-card__stat" :title="circle.unread_post_count + ' unread posts'">
+										<span>📰</span>
 										<span
-											class="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-gray-900 text-gray-400 border border-gray-700"
-										>
-											{{ circle.role }}
-										</span>
-										<span class="text-xs text-gray-500">
-											{{ circle.member_count }} members
-										</span>
+											class="circle-card__stat-count"
+											:class="{ 'has-unread': circle.unread_post_count > 0 }"
+										>{{ circle.unread_post_count }}</span>
+									</div>
+									<div class="circle-card__stat" :title="circle.unread_chat_count + ' unread messages'">
+										<span>💬</span>
+										<span
+											class="circle-card__stat-count"
+											:class="{ 'has-unread': circle.unread_chat_count > 0 }"
+										>{{ circle.unread_chat_count }}</span>
 									</div>
 								</div>
 
-								<h2
-									class="text-xl font-bold mb-2 group-hover:text-purple-400 transition-colors"
-								>
-									{{ circle.name }}
-								</h2>
-								<p class="text-gray-400 text-sm line-clamp-2 mb-6 h-10">
-									{{ circle.description || "No description provided." }}
-								</p>
-
-								<div class="space-y-3 pt-4 border-t border-gray-700/50">
-									<!-- Unread Stats -->
-									<div class="flex items-center space-x-4">
-										<div
-											class="flex items-center space-x-1.5"
-											:title="circle.unread_post_count + ' unread posts'"
-										>
-											<span class="text-lg">📰</span>
-											<span
-												:class="[
-													'text-xs font-bold',
-													circle.unread_post_count > 0
-														? 'text-purple-400'
-														: 'text-gray-600',
-												]"
-											>
-												{{ circle.unread_post_count }}
-											</span>
-										</div>
-										<div
-											class="flex items-center space-x-1.5"
-											:title="circle.unread_chat_count + ' unread messages'"
-										>
-											<span class="text-lg">💬</span>
-											<span
-												:class="[
-													'text-xs font-bold',
-													circle.unread_chat_count > 0
-														? 'text-purple-400'
-														: 'text-gray-600',
-												]"
-											>
-												{{ circle.unread_chat_count }}
-											</span>
-										</div>
+								<div v-if="circle.last_post_at">
+									<div class="circle-card__activity-label">Last Activity</div>
+									<div class="circle-card__activity-row">
+										<span
+											class="circle-card__activity-title"
+											:title="circle.last_post_title"
+										>{{ circle.last_post_title || "New post" }}</span>
+										<span class="circle-card__activity-time">
+											{{ formatDate(circle.last_post_at) }}
+										</span>
 									</div>
-
-									<!-- Last Activity -->
-									<div
-										v-if="circle.last_post_at"
-										class="flex flex-col space-y-1"
-									>
-										<span class="text-[10px] uppercase font-bold text-gray-600"
-											>Last Activity</span
-										>
-										<div class="flex items-center justify-between">
-											<span
-												class="text-xs text-gray-300 truncate max-w-[150px]"
-												:title="circle.last_post_title"
-											>
-												{{ circle.last_post_title || "New post" }}
-											</span>
-											<span class="text-[10px] text-gray-500 italic">
-												{{ formatDate(circle.last_post_at) }}
-											</span>
-										</div>
-									</div>
-									<div v-else class="text-[10px] italic text-gray-600">
-										No recent activity
-									</div>
+								</div>
+								<div v-else style="font-size: 10px; font-style: italic; color: var(--fg-3)">
+									No recent activity
 								</div>
 							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+			</main>
 		</div>
 	</div>
 </template>
@@ -261,12 +170,18 @@ const formatDate = (dateStr) => {
 };
 
 const showCreateModal = ref(false);
-const newCircle = ref({
-	name: "",
-	description: "",
-});
-
+const newCircle = ref({ name: "", description: "" });
 const activeCircle = computed(() => circleStore.activeCircle);
+
+const applyPalette = (circle) => {
+	const stored = circle?.id ? localStorage.getItem(`circle-palette-${circle.id}`) : null;
+	const palette = stored || circle?.palette || "violet";
+	const palettes = ["violet", "ocean", "ember", "forest", "rose", "slate"];
+	palettes.forEach((p) => document.body.classList.remove(`palette-${p}`));
+	if (palette !== "violet") {
+		document.body.classList.add(`palette-${palette}`);
+	}
+};
 
 const syncActiveCircle = () => {
 	const circleId = route.params.id;
@@ -274,9 +189,11 @@ const syncActiveCircle = () => {
 		const circle = circleStore.circles.find((c) => c.id === circleId);
 		if (circle) {
 			circleStore.activeCircle = circle;
+			applyPalette(circle);
 		}
 	} else if (!circleId) {
 		circleStore.activeCircle = null;
+		applyPalette(null);
 	}
 };
 
@@ -294,7 +211,6 @@ onMounted(async () => {
 	}
 	syncActiveCircle();
 
-	// Background polling for unread counts (every 15 seconds)
 	pollInterval = setInterval(() => {
 		if (auth.user) {
 			circleStore.refreshUnreadCounts();
@@ -313,6 +229,7 @@ watch(() => route.params.id, syncActiveCircle);
 
 const selectCircle = (circle) => {
 	circleStore.activeCircle = circle;
+	applyPalette(circle);
 	router.push(`/circle/${circle.id}`);
 };
 
@@ -331,6 +248,7 @@ const handleCreateCircle = async () => {
 
 const handleLogout = async () => {
 	await auth.logout();
+	applyPalette(null);
 	router.push("/login");
 };
 </script>

@@ -1,57 +1,34 @@
 <template>
-	<div class="min-h-screen flex items-center justify-center bg-gray-950">
-		<div class="bg-gray-800 p-8 rounded-lg shadow-xl w-96">
-			<h1 class="text-2xl font-bold mb-6 text-center">Join {{ siteName }}</h1>
+	<div class="auth-page">
+		<div class="auth-card">
+			<h1>Join {{ siteName }}</h1>
 			<form @submit.prevent="handleRegister">
-				<div class="mb-4">
-					<label class="block text-sm font-medium mb-1">Invite Code</label>
-					<input
-						v-model="inviteCode"
-						type="text"
-						class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-purple-500"
-						required
-					/>
+				<div class="field">
+					<label for="reg-invite">Invite Code</label>
+					<input id="reg-invite" v-model="inviteCode" type="text" required />
 				</div>
-				<div class="mb-4">
-					<label class="block text-sm font-medium mb-1">Username</label>
-					<input
-						v-model="username"
-						type="text"
-						class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-purple-500"
-						required
-					/>
+				<div class="field">
+					<label for="reg-username">Username</label>
+					<input id="reg-username" v-model="username" type="text" required />
 				</div>
-				<div class="mb-4">
-					<label class="block text-sm font-medium mb-1">Email Address</label>
-					<input
-						v-model="email"
-						type="email"
-						class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-purple-500"
-						required
-					/>
+				<div class="field">
+					<label for="reg-email">Email Address</label>
+					<input id="reg-email" v-model="email" type="email" required />
 				</div>
-				<div class="mb-6">
-					<label class="block text-sm font-medium mb-1">Password</label>
-					<input
-						v-model="password"
-						type="password"
-						class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-purple-500"
-						required
-					/>
+				<div class="field">
+					<label for="reg-password">Password</label>
+					<input id="reg-password" v-model="password" type="password" required />
 				</div>
-				<button
-					type="submit"
-					class="w-full bg-green-600 hover:bg-green-700 p-2 rounded font-bold transition"
-				>
+				<button type="submit" class="btn btn-primary btn-full" style="margin-top: 1.5rem">
 					Register
 				</button>
 			</form>
-			<p class="mt-4 text-center text-sm">
-				Already have an account?
-				<router-link to="/login" class="text-purple-400 hover:underline"
-					>Login</router-link
-				>
-			</p>
+			<div class="auth-footer">
+				<p>
+					Already have an account?
+					<router-link to="/login">Login</router-link>
+				</p>
+			</div>
 		</div>
 	</div>
 </template>

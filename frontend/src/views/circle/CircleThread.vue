@@ -17,14 +17,12 @@ const threadTree = computed(() => {
 	const root = posts.find((p) => !p.parent_id);
 	if (!root) return null;
 
-	const buildNode = (node) => {
-		return {
-			...node,
-			replies: posts
-				.filter((p) => p.parent_id === node.id)
-				.map((p) => buildNode(p)),
-		};
-	};
+	const buildNode = (node) => ({
+		...node,
+		replies: posts
+			.filter((p) => p.parent_id === node.id)
+			.map((p) => buildNode(p)),
+	});
 
 	return buildNode(root);
 });
@@ -77,15 +75,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-	<div class="space-y-4">
+	<div>
 		<button
-			@click="router.push({ name: 'circle-posts', params: { id: id } })"
-			class="text-purple-400 hover:underline mb-2 flex items-center"
+			class="btn btn-ghost"
+			@click="router.push({ name: 'circle-posts', params: { id } })"
+			style="margin-bottom: 1rem; color: var(--accent)"
 		>
 			← Back to all threads
 		</button>
 
-		<div class="space-y-4 pb-12">
+		<div style="display: flex; flex-direction: column; gap: 1rem; padding-bottom: 3rem">
 			<ThreadNode
 				v-if="threadTree"
 				:node="threadTree"

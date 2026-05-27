@@ -1,29 +1,19 @@
 <template>
-	<div class="min-h-screen flex items-center justify-center bg-gray-950">
-		<div class="bg-gray-800 p-8 rounded-lg shadow-xl w-96 text-center">
-			<h1 class="text-2xl font-bold mb-6">Email Verification</h1>
-			<div v-if="loading" class="space-y-4">
-				<p class="text-gray-300">Verifying your email address...</p>
+	<div class="auth-page">
+		<div class="auth-card" style="text-align: center">
+			<h1>Email Verification</h1>
+			<div v-if="loading" style="color: var(--fg-2)">
+				Verifying your email address...
 			</div>
-			<div v-else-if="success" class="space-y-4">
-				<div class="text-6xl text-green-500 mb-4">✅</div>
-				<p class="text-gray-300">Your email has been verified successfully!</p>
-				<router-link
-					to="/"
-					class="inline-block bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded font-bold transition"
-				>
-					Go to Dashboard
-				</router-link>
+			<div v-else-if="success" style="display: flex; flex-direction: column; align-items: center; gap: 1rem">
+				<div style="font-size: 3rem; color: var(--success)">✅</div>
+				<p style="color: var(--fg-2)">Your email has been verified successfully!</p>
+				<router-link to="/" class="btn btn-primary">Go to Dashboard</router-link>
 			</div>
-			<div v-else class="space-y-4">
-				<div class="text-6xl text-red-500 mb-4">❌</div>
-				<p class="text-gray-300">{{ error || "Verification failed." }}</p>
-				<router-link
-					to="/settings"
-					class="inline-block bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded font-bold transition"
-				>
-					Back to Settings
-				</router-link>
+			<div v-else style="display: flex; flex-direction: column; align-items: center; gap: 1rem">
+				<div style="font-size: 3rem; color: var(--error)">❌</div>
+				<p style="color: var(--fg-2)">{{ error || "Verification failed." }}</p>
+				<router-link to="/settings" class="btn btn-secondary">Back to Settings</router-link>
 			</div>
 		</div>
 	</div>

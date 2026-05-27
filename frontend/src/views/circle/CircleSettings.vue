@@ -12,9 +12,7 @@ const toast = useToastStore();
 
 const showInviteModal = ref(false);
 
-const isAdmin = computed(() => {
-	return circleStore.activeCircle?.role === "admin";
-});
+const isAdmin = computed(() => circleStore.activeCircle?.role === "admin");
 
 const settings = ref({
 	name: "",
@@ -23,22 +21,50 @@ const settings = ref({
 	invite_min_role: "standard",
 	chat_retention_days: 14,
 	chat_retention_count: 50,
+	palette: "violet",
 });
 
 const adminNewTagName = ref("");
 
+const palettes = [
+	{ key: "violet", label: "Violet" },
+	{ key: "ocean",  label: "Ocean" },
+	{ key: "ember",  label: "Ember" },
+	{ key: "forest", label: "Forest" },
+	{ key: "rose",   label: "Rose" },
+	{ key: "slate",  label: "Slate" },
+];
+
 const syncSettings = () => {
 	if (circleStore.activeCircle) {
-		settings.value = { ...circleStore.activeCircle };
+		settings.value = {
+			palette: "violet",
+			...circleStore.activeCircle,
+		};
 	}
 };
 
 onMounted(syncSettings);
 watch(() => circleStore.activeCircle, syncSettings);
 
+const applyPalette = (palette) => {
+	palettes.forEach((p) => document.body.classList.remove(`palette-${p.key}`));
+	if (palette !== "violet") {
+		document.body.classList.add(`palette-${palette}`);
+	}
+	// Persist per-circle in localStorage
+	localStorage.setItem(`circle-palette-${props.id}`, palette);
+};
+
+const selectPalette = (key) => {
+	settings.value.palette = key;
+	applyPalette(key);
+};
+
 const saveSettings = async () => {
 	try {
 		await circleStore.updateCircle(props.id, settings.value);
+		applyPalette(settings.value.palette);
 		toast.success("Circle settings updated!");
 	} catch (err) {
 		toast.error("Failed to update settings");
@@ -69,7 +95,6 @@ const clearAllInactive = async () => {
 const adminAddTag = async () => {
 	const tag = adminNewTagName.value.trim().toLowerCase();
 	if (!tag) return;
-
 	try {
 		await circleStore.createTag(props.id, tag);
 		toast.success(`Tag #${tag} created!`);
@@ -101,250 +126,177 @@ const kickMember = async (userId) => {
 	try {
 		await circleStore.deleteMember(props.id, userId);
 		toast.success("Member removed");
-		// We'd need to refresh members list here, but it's in parent.
-		// Maybe parent should provide refresh method or use window events.
 		window.dispatchEvent(new CustomEvent("refresh-members"));
 	} catch (err) {
 		toast.error(err.response?.data || "Failed to kick member");
 	}
 };
 
-const activeInvites = computed(() => {
-	return circleStore.invites.filter((i) => {
+const activeInvites = computed(() =>
+	circleStore.invites.filter((i) => {
 		const notExpired = !i.expires_at || new Date(i.expires_at) > new Date();
 		const notDepleted = !i.max_uses || i.used_count < i.max_uses;
 		return notExpired && notDepleted;
-	});
-});
+	}),
+);
 
-const inactiveInvites = computed(() => {
-	return circleStore.invites.filter((i) => {
+const inactiveInvites = computed(() =>
+	circleStore.invites.filter((i) => {
 		const expired = i.expires_at && new Date(i.expires_at) <= new Date();
 		const depleted = i.max_uses && i.used_count >= i.max_uses;
 		return expired || depleted;
-	});
-});
+	}),
+);
 
-const formatDate = (dateStr) => {
-	return new Date(dateStr).toLocaleString();
-};
+const formatDate = (dateStr) => new Date(dateStr).toLocaleString();
 </script>
 
 <template>
-	<div class="space-y-8 w-full max-w-2xl mx-auto">
+	<div class="circle-settings">
 		<!-- Circle Config -->
-		<section class="bg-gray-800 p-6 rounded-lg space-y-4">
-			<h3 class="text-xl font-bold border-b border-gray-700 pb-2">
-				Circle Settings
-			</h3>
-			<div class="grid grid-cols-2 gap-4">
-				<div class="flex flex-col">
-					<label class="text-xs text-gray-400 mb-1">Name</label>
-					<input
-						v-model="settings.name"
-						class="bg-gray-700 p-2 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
-					/>
+		<section class="section-card">
+			<h3 class="section-card__title">Circle Settings</h3>
+
+			<div class="field-row">
+				<div class="field">
+					<label>Name</label>
+					<input v-model="settings.name" />
 				</div>
-				<div class="flex flex-col">
-					<label class="text-xs text-gray-400 mb-1">Invite Min Role</label>
-					<select
-						v-model="settings.invite_min_role"
-						class="bg-gray-700 p-2 rounded focus:outline-none"
-					>
+				<div class="field">
+					<label>Invite Min Role</label>
+					<select v-model="settings.invite_min_role">
 						<option value="guest">Guest</option>
 						<option value="standard">Standard</option>
 						<option value="mod">Moderator</option>
 						<option value="admin">Admin</option>
 					</select>
 				</div>
-				<div class="flex flex-col col-span-2">
-					<label class="text-xs text-gray-400 mb-1">Description</label>
-					<textarea
-						v-model="settings.description"
-						class="bg-gray-700 p-2 rounded focus:outline-none h-20"
-					></textarea>
-				</div>
-				<div class="flex items-center space-x-2">
-					<input
-						type="checkbox"
-						v-model="settings.allow_freeform_tags"
-						id="freeform"
-					/>
-					<label for="freeform" class="text-sm"
-						>Allow users to create tags</label
-					>
+			</div>
+
+			<div class="field">
+				<label>Description</label>
+				<textarea v-model="settings.description" style="height: 80px"></textarea>
+			</div>
+
+			<div class="checkbox-row">
+				<input type="checkbox" v-model="settings.allow_freeform_tags" id="freeform" />
+				<label for="freeform">Allow users to create tags</label>
+			</div>
+
+			<!-- Palette picker -->
+			<div class="field" style="margin-top: 0.5rem">
+				<label class="label-uppercase">Color Palette</label>
+				<div class="palette-picker" style="margin-top: 0.5rem">
+					<button
+						v-for="p in palettes"
+						:key="p.key"
+						class="palette-swatch"
+						:class="[p.key, { active: settings.palette === p.key }]"
+						:title="p.label"
+						@click="selectPalette(p.key)"
+					></button>
 				</div>
 			</div>
-			<div class="flex justify-end">
-				<button
-					@click="saveSettings"
-					class="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded font-bold transition"
-				>
-					Save Changes
-				</button>
+
+			<div class="form-actions">
+				<button class="btn btn-primary" @click="saveSettings">Save Changes</button>
 			</div>
 		</section>
 
 		<!-- Invites -->
-		<section class="bg-gray-800 p-6 rounded-lg space-y-4">
-			<div
-				class="flex items-center justify-between border-b border-gray-700 pb-2"
-			>
-				<h3 class="text-xl font-bold">Invites</h3>
-				<button
-					@click="showInviteModal = true"
-					class="bg-purple-600 hover:bg-purple-700 px-4 py-1.5 rounded font-bold transition text-xs"
-				>
-					+ New Invite
-				</button>
+		<section class="section-card">
+			<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border)">
+				<h3>Invites</h3>
+				<button class="btn btn-primary btn-sm" @click="showInviteModal = true">+ New Invite</button>
 			</div>
 
-			<div v-if="activeInvites.length > 0" class="mt-6 space-y-3">
-				<h4 class="text-sm font-bold text-gray-400">Active Invites</h4>
-				<div
-					v-for="invite in activeInvites"
-					:key="invite.id"
-					class="flex items-center justify-between bg-gray-900 p-3 rounded border border-gray-700"
-				>
-					<div class="space-y-1">
-						<div class="flex items-center space-x-2">
-							<code
-								class="bg-purple-900/30 text-purple-400 px-2 py-0.5 rounded font-mono font-bold"
-								>{{ invite.code }}</code
-							>
-							<span class="text-xs text-gray-500"
-								>grants {{ invite.role_to_grant }} • Issued by
-								{{ invite.created_by }}</span
-							>
+			<div v-if="activeInvites.length > 0" style="display: flex; flex-direction: column; gap: 0.75rem">
+				<h4 style="font-size: var(--text-sm); font-weight: 700; color: var(--fg-2)">Active Invites</h4>
+				<div v-for="invite in activeInvites" :key="invite.id" class="invite-row">
+					<div style="display: flex; flex-direction: column; gap: 0.25rem">
+						<div style="display: flex; align-items: center; gap: 0.5rem">
+							<code class="invite-code">{{ invite.code }}</code>
+							<span style="font-size: var(--text-xs); color: var(--fg-3)">
+								grants {{ invite.role_to_grant }} · Issued by {{ invite.created_by }}
+							</span>
 						</div>
-						<div class="text-[10px] text-gray-500">
-							Uses: {{ invite.used_count }} / {{ invite.max_uses || "∞" }} •
-							Expires:
-							{{ invite.expires_at ? formatDate(invite.expires_at) : "Never" }}
+						<div style="font-size: 10px; color: var(--fg-3)">
+							Uses: {{ invite.used_count }} / {{ invite.max_uses || "∞" }} ·
+							Expires: {{ invite.expires_at ? formatDate(invite.expires_at) : "Never" }}
 						</div>
 					</div>
-					<button
-						@click="revokeInvite(invite.id)"
-						class="text-xs text-red-400 hover:underline"
-					>
-						Revoke
-					</button>
+					<button class="btn btn-ghost btn-sm" style="color: var(--danger)" @click="revokeInvite(invite.id)">Revoke</button>
 				</div>
 			</div>
 
-			<div v-if="inactiveInvites.length > 0" class="mt-6 space-y-3 opacity-60">
-				<div class="flex items-center justify-between">
-					<h4 class="text-sm font-bold text-gray-500">
-						Inactive/Depleted Invites
-					</h4>
-					<button
-						@click="clearAllInactive"
-						class="text-[10px] uppercase font-bold text-gray-600 hover:text-red-400 transition-colors"
-					>
-						Clear All
-					</button>
+			<div v-if="inactiveInvites.length > 0" style="display: flex; flex-direction: column; gap: 0.75rem; opacity: 0.6">
+				<div style="display: flex; align-items: center; justify-content: space-between">
+					<h4 style="font-size: var(--text-sm); font-weight: 700; color: var(--fg-3)">Inactive / Depleted</h4>
+					<button class="btn btn-ghost btn-sm" style="color: var(--danger)" @click="clearAllInactive">Clear All</button>
 				</div>
-				<div
-					v-for="invite in inactiveInvites"
-					:key="invite.id"
-					class="flex items-center justify-between bg-gray-950 p-3 rounded border border-gray-800"
-				>
-					<div class="space-y-1">
-						<div class="flex items-center space-x-2">
-							<code
-								class="bg-gray-800 text-gray-500 px-2 py-0.5 rounded font-mono"
-								>{{ invite.code }}</code
-							>
-							<span class="text-xs text-gray-600"
-								>grants {{ invite.role_to_grant }} • Issued by
-								{{ invite.created_by }}</span
-							>
+				<div v-for="invite in inactiveInvites" :key="invite.id" class="invite-row inactive">
+					<div style="display: flex; flex-direction: column; gap: 0.25rem">
+						<div style="display: flex; align-items: center; gap: 0.5rem">
+							<code class="invite-code inactive">{{ invite.code }}</code>
+							<span style="font-size: var(--text-xs); color: var(--fg-3)">
+								grants {{ invite.role_to_grant }} · Issued by {{ invite.created_by }}
+							</span>
 						</div>
-						<div class="text-[10px] text-gray-600">
-							Uses: {{ invite.used_count }} / {{ invite.max_uses || "∞" }} •
-							Status:
-							<span class="text-red-900/80 font-bold uppercase">
-								{{
-									invite.max_uses && invite.used_count >= invite.max_uses
-										? "Depleted"
-										: "Expired"
-								}}
+						<div style="font-size: 10px; color: var(--fg-3)">
+							Uses: {{ invite.used_count }} / {{ invite.max_uses || "∞" }} ·
+							<span style="font-weight: 700; text-transform: uppercase">
+								{{ invite.max_uses && invite.used_count >= invite.max_uses ? "Depleted" : "Expired" }}
 							</span>
 						</div>
 					</div>
-					<button
-						@click="revokeInvite(invite.id)"
-						class="text-xs text-gray-500 hover:text-red-400 hover:underline"
-					>
-						Clear
-					</button>
+					<button class="btn btn-ghost btn-sm" style="color: var(--fg-3)" @click="revokeInvite(invite.id)">Clear</button>
 				</div>
 			</div>
 		</section>
 
 		<!-- Manage Tags -->
-		<section class="bg-gray-800 p-6 rounded-lg space-y-4">
-			<h3 class="text-xl font-bold border-b border-gray-700 pb-2">
-				Manage Tags
-			</h3>
-			<div class="flex items-center space-x-2">
-				<input
-					v-model="adminNewTagName"
-					placeholder="New tag name"
-					class="flex-1 bg-gray-700 p-2 rounded focus:outline-none"
-				/>
-				<button
-					@click="adminAddTag"
-					class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded font-bold transition"
-				>
-					Add Tag
-				</button>
+		<section class="section-card">
+			<h3 class="section-card__title">Manage Tags</h3>
+			<div style="display: flex; gap: 0.5rem">
+				<input v-model="adminNewTagName" placeholder="New tag name" style="flex: 1" />
+				<button class="btn btn-primary" @click="adminAddTag">Add Tag</button>
 			</div>
-			<div class="flex flex-wrap gap-2 pt-2">
+			<div style="display: flex; flex-wrap: wrap; gap: 0.5rem; padding-top: 0.5rem">
 				<div
 					v-for="tag in circleStore.tags"
 					:key="tag.id"
-					class="bg-gray-900 border border-gray-700 px-3 py-1.5 rounded-lg flex items-center"
+					style="display: flex; align-items: center; gap: 0.25rem; background: var(--bg-sunken); border: 1px solid var(--border); padding: 0.375rem 0.75rem; border-radius: var(--r-lg)"
 				>
-					<span :class="tag.is_pinned ? 'text-purple-400' : ''"
-						>#{{ tag.name }}</span
-					>
+					<span :style="tag.is_pinned ? 'color: var(--accent)' : ''">#{{ tag.name }}</span>
 					<button
+						class="btn btn-ghost btn-sm"
+						style="padding: 0 0.25rem"
 						@click="togglePin(tag.id, !tag.is_pinned)"
-						class="ml-2 text-xs text-gray-500 hover:text-purple-400"
-					>
-						{{ tag.is_pinned ? "Unpin" : "Pin" }}
-					</button>
+					>{{ tag.is_pinned ? "Unpin" : "Pin" }}</button>
 				</div>
 			</div>
 		</section>
 
-		<section
-			v-if="isAdmin"
-			class="bg-gray-800 p-6 rounded-lg space-y-4 border border-red-900/20"
-		>
-			<h3
-				class="text-xl font-bold border-b border-red-900/50 pb-2 text-red-400"
-			>
-				Danger Zone
-			</h3>
-			<div class="space-y-2">
+		<!-- Danger Zone -->
+		<section v-if="isAdmin" class="section-card danger">
+			<h3 class="section-card__title">Danger Zone</h3>
+			<div style="display: flex; flex-direction: column; gap: 0.5rem">
 				<div
 					v-for="m in members"
 					:key="m.id"
-					class="flex items-center justify-between bg-gray-900 p-3 rounded border border-gray-700"
+					style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-sunken); padding: 0.75rem; border-radius: var(--r-md); border: 1px solid var(--border)"
 				>
 					<div>
-						<span class="font-bold">{{ m.username }}</span>
-						<span class="text-xs text-gray-400 ml-2"
-							>Invited by {{ m.invited_by }}</span
-						>
+						<span style="font-weight: 700">{{ m.username }}</span>
+						<span style="font-size: var(--text-xs); color: var(--fg-3); margin-left: 0.5rem">
+							Invited by {{ m.invited_by }}
+						</span>
 					</div>
-					<div class="flex items-center space-x-2">
+					<div style="display: flex; align-items: center; gap: 0.5rem">
 						<select
 							v-model="m.role"
 							@change="updateMemberRole(m.id, m.role)"
-							class="bg-gray-700 text-xs p-1 rounded focus:outline-none"
+							style="font-size: var(--text-xs); padding: 0.25rem 0.5rem; width: auto"
 						>
 							<option value="guest">Guest</option>
 							<option value="standard">Standard</option>
@@ -353,11 +305,9 @@ const formatDate = (dateStr) => {
 						</select>
 						<button
 							v-if="m.id !== auth.user?.id"
+							class="btn btn-danger btn-sm"
 							@click="kickMember(m.id)"
-							class="bg-red-900/20 text-red-400 px-2 py-1 rounded text-xs hover:bg-red-900/40 transition"
-						>
-							Kick
-						</button>
+						>Kick</button>
 					</div>
 				</div>
 			</div>

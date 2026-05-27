@@ -1,33 +1,25 @@
 <template>
-	<div class="min-h-screen flex items-center justify-center bg-gray-950">
-		<div class="bg-gray-800 p-8 rounded-lg shadow-xl w-96">
-			<h1 class="text-2xl font-bold mb-6 text-center">New Password</h1>
+	<div class="auth-page">
+		<div class="auth-card">
+			<h1>New Password</h1>
 			<form v-if="!submitted" @submit.prevent="handleSubmit">
-				<div class="mb-6">
-					<label class="block text-sm font-medium mb-1">New Password</label>
+				<div class="field">
+					<label for="new-password">New Password</label>
 					<input
+						id="new-password"
 						v-model="password"
 						type="password"
-						class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-purple-500"
 						required
 						minlength="8"
 					/>
 				</div>
-				<button
-					type="submit"
-					class="w-full bg-purple-600 hover:bg-purple-700 p-2 rounded font-bold transition"
-				>
+				<button type="submit" class="btn btn-primary btn-full" style="margin-top: 1.5rem">
 					Update Password
 				</button>
 			</form>
-			<div v-else class="text-center space-y-4">
-				<p class="text-gray-300">Your password has been updated successfully.</p>
-				<router-link
-					to="/login"
-					class="inline-block bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded font-bold transition"
-				>
-					Go to Login
-				</router-link>
+			<div v-else style="text-align: center; display: flex; flex-direction: column; gap: 1rem">
+				<p style="color: var(--fg-2)">Your password has been updated successfully.</p>
+				<router-link to="/login" class="btn btn-primary">Go to Login</router-link>
 			</div>
 		</div>
 	</div>

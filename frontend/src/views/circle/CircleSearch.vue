@@ -29,9 +29,7 @@ const performSearch = async () => {
 	}
 };
 
-const formatDate = (dateStr) => {
-	return new Date(dateStr).toLocaleString();
-};
+const formatDate = (dateStr) => new Date(dateStr).toLocaleString();
 
 const goToResult = (result) => {
 	router.push({
@@ -45,50 +43,42 @@ watch(() => route.query.q, performSearch);
 </script>
 
 <template>
-	<div class="space-y-6">
-		<div class="flex items-center justify-between">
-			<h1 class="text-2xl font-bold">
-				Search Results for "{{ route.query.q }}"
-			</h1>
-			<span class="text-sm text-gray-500">{{ results.length }} results found</span>
+	<div style="display: flex; flex-direction: column; gap: 1.5rem">
+		<div style="display: flex; align-items: center; justify-content: space-between">
+			<h1>Search Results for "{{ route.query.q }}"</h1>
+			<span style="font-size: var(--text-sm); color: var(--fg-3)">
+				{{ results.length }} results found
+			</span>
 		</div>
 
-		<div v-if="loading" class="text-center py-20">
-			<div
-				class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"
-			></div>
-			<p class="mt-4 text-gray-400">Searching...</p>
+		<div v-if="loading" style="text-align: center; padding: 4rem 0">
+			<div class="spinner"></div>
+			<p style="margin-top: 1rem; color: var(--fg-2)">Searching…</p>
 		</div>
 
-		<div v-else-if="results.length > 0" class="space-y-4">
+		<div v-else-if="results.length > 0" class="thread-list">
 			<div
 				v-for="result in results"
 				:key="result.id"
+				class="thread-item"
 				@click="goToResult(result)"
-				class="bg-gray-800 p-4 rounded-lg border border-gray-700 cursor-pointer hover:border-purple-500 transition-colors group"
 			>
-				<div class="flex items-center justify-between mb-2 text-xs">
-					<div class="flex items-center space-x-2">
-						<span class="font-bold text-purple-400">{{
-							result.author_name
-						}}</span>
-						<span class="text-gray-500">{{ formatDate(result.created_at) }}</span>
+				<div class="thread-item__header">
+					<div>
+						<span class="thread-item__author">{{ result.author_name }}</span>
+						<span class="thread-item__date">{{ formatDate(result.created_at) }}</span>
 					</div>
-					<span v-if="result.parent_id" class="text-[10px] text-gray-600 uppercase font-bold">Reply</span>
-                    <span v-else class="text-[10px] text-purple-600 uppercase font-bold">Thread</span>
+					<span v-if="result.parent_id" class="role-badge">Reply</span>
+					<span v-else class="badge badge-accent">Thread</span>
 				</div>
 
-				<h3 v-if="result.title" class="font-bold text-lg mb-1 group-hover:text-purple-400 transition-colors">
-					{{ result.title }}
-				</h3>
-				<p class="text-gray-300 text-sm line-clamp-3">
-					{{ stripMarkdown(result.content) }}
-				</p>
+				<h3 v-if="result.title">{{ result.title }}</h3>
+				<p class="thread-item__preview">{{ stripMarkdown(result.content) }}</p>
 			</div>
 		</div>
 
-		<div v-else class="text-center py-20 text-gray-500">
-			<div class="text-4xl mb-4">🔍</div>
+		<div v-else class="empty-state">
+			<div class="empty-state__icon">🔍</div>
 			<p>No results found for your search query.</p>
 		</div>
 	</div>

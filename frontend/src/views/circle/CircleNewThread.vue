@@ -41,119 +41,88 @@ const addCustomTag = () => {
 </script>
 
 <template>
-	<div class="max-w-3xl mx-auto w-full">
-		<div class="bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-xl">
-			<div class="flex items-center justify-between mb-6">
-				<h3 class="text-xl font-bold">Start a new thread</h3>
+	<div style="max-width: var(--content-max); margin: 0 auto; width: 100%">
+		<div class="section-card">
+			<div style="display: flex; align-items: center; justify-content: space-between">
+				<h3>Start a new thread</h3>
 				<button
-					@click="router.push({ name: 'circle-posts', params: { id: id } })"
-					class="text-gray-400 hover:text-gray-200"
-				>
-					✕
-				</button>
+					class="btn-icon"
+					@click="router.push({ name: 'circle-posts', params: { id } })"
+				>✕</button>
 			</div>
 
-			<div class="space-y-4">
-				<div class="space-y-1">
-					<label class="text-xs text-gray-500 font-bold uppercase">Title</label>
+			<div class="field">
+				<label class="label-uppercase">Title</label>
+				<input v-model="newPost.title" placeholder="Give your thread a clear title" />
+			</div>
+
+			<div class="field">
+				<div class="label-meta">
+					<label class="label-uppercase">Content</label>
+					<button
+						class="btn btn-ghost btn-sm"
+						style="color: var(--accent)"
+						@click="showPreview = !showPreview"
+					>
+						{{ showPreview ? "Edit Content" : "Show Preview" }}
+					</button>
+				</div>
+				<div
+					v-if="showPreview"
+					class="markdown-content"
+					style="min-height: 200px; background: var(--bg-sunken); padding: 0.75rem; border-radius: var(--r-md); border: 1px solid var(--border)"
+					v-html="renderMarkdown(newPost.content)"
+				></div>
+				<textarea
+					v-else
+					v-model="newPost.content"
+					placeholder="What's on your mind? (Markdown supported)"
+					style="min-height: 200px"
+				></textarea>
+			</div>
+
+			<div class="field">
+				<label class="label-uppercase">Tags (at least one required)</label>
+				<div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.375rem">
+					<button
+						v-for="tag in circleStore.tags"
+						:key="tag.id"
+						class="tag-chip"
+						:class="{ active: newPost.tags.includes(tag.name) }"
+						@click="toggleTagSelection(tag.name)"
+					>{{ tag.name }}</button>
+
 					<input
-						v-model="newPost.title"
-						placeholder="Give your thread a clear title"
-						class="w-full bg-gray-900 p-3 rounded-lg border border-gray-700 focus:outline-none focus:border-purple-500 transition-colors"
+						v-if="circleStore.activeCircle?.allow_freeform_tags"
+						v-model="newTagName"
+						@keyup.enter="addCustomTag"
+						placeholder="Add custom tag…"
+						style="width: 140px; font-size: var(--text-xs); padding: 0.2em 0.625em; border-radius: var(--r-pill)"
 					/>
 				</div>
 
-				<div class="space-y-1">
-					<div class="flex items-center justify-between">
-						<label class="text-xs text-gray-500 font-bold uppercase"
-							>Content</label
-						>
-						<button
-							@click="showPreview = !showPreview"
-							class="text-[10px] uppercase font-bold text-purple-400 hover:text-purple-300"
-						>
-							{{ showPreview ? "Edit Content" : "Show Preview" }}
-						</button>
-					</div>
-					<div
-						v-if="showPreview"
-						class="min-h-[200px] bg-gray-900 p-3 rounded-lg border border-gray-700 markdown-content text-sm"
-						v-html="renderMarkdown(newPost.content)"
-					></div>
-					<textarea
-						v-else
-						v-model="newPost.content"
-						placeholder="What's on your mind? (Markdown supported)"
-						class="w-full bg-gray-900 p-3 rounded-lg border border-gray-700 focus:outline-none focus:border-purple-500 transition-colors min-h-[200px]"
-					></textarea>
+				<div v-if="newPost.tags.length > 0" style="display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.5rem">
+					<span
+						v-for="tag in newPost.tags"
+						:key="tag"
+						class="tag-chip tag-chip-selected"
+					>
+						{{ tag }}
+						<button class="tag-remove" @click="toggleTagSelection(tag)">×</button>
+					</span>
 				</div>
+			</div>
 
-				<div class="space-y-2">
-					<label class="text-xs text-gray-500 font-bold uppercase"
-						>Tags (at least one required)</label
-					>
-					<div class="flex flex-wrap gap-2">
-						<button
-							v-for="tag in circleStore.tags"
-							:key="tag.id"
-							@click="toggleTagSelection(tag.name)"
-							:class="[
-								'px-3 py-1 rounded-full text-xs border transition-colors',
-								newPost.tags.includes(tag.name)
-									? 'bg-purple-600 border-purple-500 text-white'
-									: 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500',
-							]"
-						>
-							{{ tag.name }}
-						</button>
-						<div
-							v-if="circleStore.activeCircle?.allow_freeform_tags"
-							class="flex items-center space-x-1"
-						>
-							<input
-								v-model="newTagName"
-								@keyup.enter="addCustomTag"
-								placeholder="Add custom tag..."
-								class="bg-gray-900 border border-gray-700 text-xs px-3 py-1 rounded-full focus:outline-none focus:border-purple-500 w-32"
-							/>
-						</div>
-					</div>
-					<div v-if="newPost.tags.length > 0" class="flex flex-wrap gap-1.5 mt-2">
-						<span
-							v-for="tag in newPost.tags"
-							:key="tag"
-							class="bg-purple-900/30 text-purple-400 text-xs px-2.5 py-1 rounded-full border border-purple-500/30 flex items-center"
-						>
-							{{ tag }}
-							<button
-								@click="toggleTagSelection(tag)"
-								class="ml-2 text-purple-600 hover:text-purple-400 font-bold"
-							>
-								×
-							</button>
-						</span>
-					</div>
-				</div>
-
-				<div class="flex justify-end space-x-3 pt-4 border-t border-gray-700">
-					<button
-						@click="router.push({ name: 'circle-posts', params: { id: id } })"
-						class="px-6 py-2 rounded-lg font-bold text-gray-400 hover:bg-gray-700 transition-colors"
-					>
-						Cancel
-					</button>
-					<button
-						@click="handleCreatePost"
-						:disabled="
-							!newPost.content.trim() ||
-							!newPost.title.trim() ||
-							newPost.tags.length === 0
-						"
-						class="bg-purple-600 px-8 py-2 rounded-lg font-bold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-					>
-						Create Thread
-					</button>
-				</div>
+			<div class="form-actions">
+				<button
+					class="btn btn-ghost"
+					@click="router.push({ name: 'circle-posts', params: { id } })"
+				>Cancel</button>
+				<button
+					class="btn btn-primary"
+					@click="handleCreatePost"
+					:disabled="!newPost.content.trim() || !newPost.title.trim() || newPost.tags.length === 0"
+				>Create Thread</button>
 			</div>
 		</div>
 	</div>
