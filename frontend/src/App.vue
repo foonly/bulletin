@@ -3,6 +3,8 @@ import ToastContainer from "./components/ToastContainer.vue";
 </script>
 
 <template>
-	<router-view></router-view>
-	<ToastContainer />
+	<div class="app-wrapper">
+		<router-view></router-view>
+		<ToastContainer />
+	</div>
 </template>

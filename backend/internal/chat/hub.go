@@ -270,7 +270,7 @@ func (h *Hub) GetHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var messages []Message
+	messages := []Message{}
 	for rows.Next() {
 		var m Message
 		err := rows.Scan(&m.ID, &m.CircleID, &m.UserID, &m.Username, &m.Content, &m.CreatedAt)

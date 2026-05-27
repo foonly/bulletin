@@ -19,7 +19,7 @@ const isUnread = (msg) => {
 };
 
 const unreadChatCount = computed(() => {
-	return circleStore.chatMessages.filter(isUnread).length;
+	return (circleStore.chatMessages || []).filter(isUnread).length;
 });
 
 const formatDate = (dateStr) => new Date(dateStr).toLocaleString();
@@ -74,7 +74,7 @@ onUnmounted(() => {
 	window.removeEventListener("chat-message-received", handleNewMessage);
 });
 
-watch(() => circleStore.chatMessages.length, handleNewMessage);
+watch(() => circleStore.chatMessages?.length, handleNewMessage);
 </script>
 
 <template>
@@ -92,7 +92,8 @@ watch(() => circleStore.chatMessages.length, handleNewMessage);
 				<span
 					class="chat-message__author"
 					:class="{ 'is-own': msg.user_id === auth.user?.id }"
-				>{{ msg.username }}:</span>
+					>{{ msg.username }}:</span
+				>
 				<span
 					class="chat-message__content markdown-content"
 					v-html="renderMarkdown(msg.content)"

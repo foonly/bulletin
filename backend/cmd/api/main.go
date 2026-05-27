@@ -241,6 +241,14 @@ func runMigrations(pool *pgxpool.Pool) error {
 				if !isAlreadyExists {
 					return fmt.Errorf("error in migration %s: %w", f.Name(), err)
 				}
+
+				// The failed statement aborted the transaction; roll it back and
+				// open a fresh one just to record the migration as applied.
+				tx.Rollback(context.Background())
+				tx, err = pool.Begin(context.Background())
+				if err != nil {
+					return fmt.Errorf("failed to start recording transaction for %s: %w", f.Name(), err)
+				}
 			}
 
 			_, err = tx.Exec(context.Background(), "INSERT INTO schema_migrations (name) VALUES ($1)", f.Name())

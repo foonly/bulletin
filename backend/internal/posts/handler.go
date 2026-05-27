@@ -218,7 +218,7 @@ func (h *Handler) ListCircles(w http.ResponseWriter, r *http.Request) {
 			ORDER BY circle_id, created_at DESC
 		)
 		SELECT c.id, c.name, COALESCE(c.description, ''), c.owner_id, c.allow_freeform_tags,
-		        c.invite_min_role, c.chat_retention_days, c.chat_retention_count, c.created_at, cm.role,
+		        c.invite_min_role, c.chat_retention_days, c.chat_retention_count, c.palette, c.created_at, cm.role,
 		        rm_chat.last_read_at,
 		        COALESCE(cup.count, 0) + COALESCE(cuc.count, 0) as unread_count,
 		        COALESCE(cuc.count, 0) as unread_chat_count,
@@ -250,7 +250,7 @@ func (h *Handler) ListCircles(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var c circleWithRole
 		err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.OwnerID, &c.AllowFreeformTags,
-			&c.InviteMinRole, &c.ChatRetentionDays, &c.ChatRetentionCount, &c.CreatedAt, &c.Role,
+			&c.InviteMinRole, &c.ChatRetentionDays, &c.ChatRetentionCount, &c.Palette, &c.CreatedAt, &c.Role,
 			&c.LastReadAt, &c.UnreadCount, &c.UnreadChatCount, &c.UnreadPostCount, &c.MemberCount,
 			&c.LastPostTitle, &c.LastPostAt)
 		if err != nil {
@@ -304,7 +304,7 @@ func (h *Handler) ListPosts(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var posts []postResponse
+	posts := []postResponse{}
 	for rows.Next() {
 		var p postResponse
 		var createdAt time.Time
@@ -917,6 +917,7 @@ func (h *Handler) UpdateCircle(w http.ResponseWriter, r *http.Request) {
 		InviteMinRole      models.CircleRole `json:"invite_min_role"`
 		ChatRetentionDays  int               `json:"chat_retention_days"`
 		ChatRetentionCount int               `json:"chat_retention_count"`
+		Palette            string            `json:"palette"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -931,10 +932,10 @@ func (h *Handler) UpdateCircle(w http.ResponseWriter, r *http.Request) {
 	_, err = h.DB.Exec(r.Context(),
 		`UPDATE circles
 		 SET name = $1, description = $2, allow_freeform_tags = $3, invite_min_role = $4,
-		     chat_retention_days = $5, chat_retention_count = $6
-		 WHERE id = $7`,
+		     chat_retention_days = $5, chat_retention_count = $6, palette = $7
+		 WHERE id = $8`,
 		req.Name, req.Description, req.AllowFreeformTags, req.InviteMinRole,
-		req.ChatRetentionDays, req.ChatRetentionCount, circleID)
+		req.ChatRetentionDays, req.ChatRetentionCount, req.Palette, circleID)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

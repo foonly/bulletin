@@ -17,11 +17,11 @@ export const useCircleStore = defineStore("circles", {
 	actions: {
 		async fetchCircles() {
 			const res = await axios.get("/api/circles");
-			this.circles = res.data;
+			this.circles = res.data || [];
 		},
 		async fetchInvites(circleId) {
 			const res = await axios.get(`/api/circles/${circleId}/invites`);
-			this.invites = res.data;
+			this.invites = res.data || [];
 		},
 		async deleteInvite(circleId, inviteId) {
 			await axios.delete(`/api/circles/${circleId}/invites/${inviteId}`);
@@ -34,7 +34,7 @@ export const useCircleStore = defineStore("circles", {
 		},
 		async fetchTags(circleId) {
 			const res = await axios.get(`/api/circles/${circleId}/tags`);
-			this.tags = res.data;
+			this.tags = res.data || [];
 		},
 		async createTag(circleId, name) {
 			await axios.post(`/api/circles/${circleId}/tags`, { name });
@@ -66,7 +66,7 @@ export const useCircleStore = defineStore("circles", {
 				url += `?tag=${encodeURIComponent(tag)}`;
 			}
 			const res = await axios.get(url);
-			this.threads = res.data;
+			this.threads = res.data || [];
 		},
 		async fetchThread(circleId, postId) {
 			const res = await axios.get(`/api/circles/${circleId}/threads/${postId}`);
@@ -85,11 +85,11 @@ export const useCircleStore = defineStore("circles", {
 		},
 		async fetchPosts(circleId) {
 			const res = await axios.get(`/api/circles/${circleId}/posts`);
-			this.posts = res.data;
+			this.posts = res.data || [];
 		},
 		async fetchChatHistory(circleId) {
 			const res = await axios.get(`/api/circles/${circleId}/chat/history`);
-			this.chatMessages = res.data;
+			this.chatMessages = res.data || [];
 		},
 		async search(circleId, query) {
 			const res = await axios.get(
@@ -104,6 +104,10 @@ export const useCircleStore = defineStore("circles", {
 		async updateCircle(circleId, circleData) {
 			await axios.put(`/api/circles/${circleId}`, circleData);
 			await this.fetchCircles();
+			if (this.activeCircle?.id === circleId) {
+				const updated = this.circles.find((c) => c.id === circleId);
+				if (updated) this.activeCircle = updated;
+			}
 		},
 		async createInvite(circleId, inviteData) {
 			await axios.post(`/api/circles/${circleId}/invites`, inviteData);

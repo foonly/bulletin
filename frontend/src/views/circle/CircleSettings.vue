@@ -113,7 +113,6 @@ const applyPalette = (palette) => {
 	if (palette !== "violet") {
 		document.body.classList.add(`palette-${palette}`);
 	}
-	localStorage.setItem(`circle-palette-${props.id}`, palette);
 };
 
 const selectPalette = (key) => {

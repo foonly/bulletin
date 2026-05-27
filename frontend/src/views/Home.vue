@@ -16,22 +16,14 @@
 				</div>
 				<span class="tooltip">{{ circle.name }}</span>
 			</div>
-
-			<button
-				class="circle-icon circle-icon--join"
-				title="Join a Circle"
-				@click="showJoinModal = true"
-			>#</button>
-
-			<button
-				class="circle-icon circle-icon--add"
-				title="Create circle"
-				@click="showCreateModal = true"
-			>+</button>
 		</nav>
 
 		<!-- Create Circle Modal -->
-		<div v-if="showCreateModal" class="modal-backdrop" @click.self="showCreateModal = false">
+		<div
+			v-if="showCreateModal"
+			class="modal-backdrop"
+			@click.self="showCreateModal = false"
+		>
 			<div class="modal">
 				<div class="modal__header">
 					<h2>Create a New Circle</h2>
@@ -50,18 +42,26 @@
 					></textarea>
 				</div>
 				<div class="form-actions">
-					<button class="btn btn-ghost" @click="showCreateModal = false">Cancel</button>
+					<button class="btn btn-ghost" @click="showCreateModal = false">
+						Cancel
+					</button>
 					<button
 						class="btn btn-primary"
 						@click="handleCreateCircle"
 						:disabled="!newCircle.name.trim()"
-					>Create Circle</button>
+					>
+						Create Circle
+					</button>
 				</div>
 			</div>
 		</div>
 
 		<!-- Join Circle Modal -->
-		<div v-if="showJoinModal" class="modal-backdrop" @click.self="showJoinModal = false">
+		<div
+			v-if="showJoinModal"
+			class="modal-backdrop"
+			@click.self="showJoinModal = false"
+		>
 			<div class="modal">
 				<div class="modal__header">
 					<h2>Join a Circle</h2>
@@ -79,12 +79,16 @@
 					/>
 				</div>
 				<div class="form-actions">
-					<button class="btn btn-ghost" @click="showJoinModal = false">Cancel</button>
+					<button class="btn btn-ghost" @click="showJoinModal = false">
+						Cancel
+					</button>
 					<button
 						class="btn btn-primary"
 						@click="handleJoinCircle"
 						:disabled="!joinInviteCode.trim()"
-					>Join Circle</button>
+					>
+						Join Circle
+					</button>
 				</div>
 			</div>
 		</div>
@@ -92,86 +96,108 @@
 		<!-- Main content area -->
 		<div class="app-main">
 			<header class="app-header">
-				<span class="app-header__title">{{ siteName }}</span>
+				<router-link to="/" class="app-header__title">{{
+					siteName
+				}}</router-link>
 				<nav class="app-header__nav">
 					<router-link to="/settings">{{ auth.user?.username }}</router-link>
-					<button class="app-header__logout" @click="handleLogout">Logout</button>
+					<button class="app-header__logout" @click="handleLogout">
+						Logout
+					</button>
 				</nav>
 			</header>
 
 			<main class="app-content">
-				<router-view></router-view>
+				<div class="app-content-inner">
+					<router-view></router-view>
 
-				<!-- Dashboard (shown when at root path) -->
-				<div v-if="route.path === '/'" class="home-dashboard">
-					<div class="home-dashboard__header">
-						<h1>Your Circles</h1>
-						<div style="display: flex; gap: 0.75rem">
-							<button class="btn btn-secondary" @click="showJoinModal = true">
-								# Join Circle
-							</button>
-							<button class="btn btn-primary" @click="showCreateModal = true">
-								+ Create Circle
-							</button>
-						</div>
-					</div>
-
-					<div class="circles-grid">
-						<div
-							v-for="circle in circleStore.circles"
-							:key="circle.id"
-							class="circle-card"
-							@click="selectCircle(circle)"
-						>
-							<div class="circle-card__header">
-								<div class="circle-card__avatar">
-									{{ circle.name ? circle.name[0].toUpperCase() : "?" }}
-								</div>
-								<div class="circle-card__meta">
-									<span class="role-badge">{{ circle.role }}</span>
-									<span style="font-size: var(--text-xs); color: var(--fg-3)">
-										{{ circle.member_count }} members
-									</span>
-								</div>
+					<!-- Dashboard (shown when at root path) -->
+					<div v-if="route.path === '/'" class="home-dashboard">
+						<div class="home-dashboard__header">
+							<h1>Your Circles</h1>
+							<div style="display: flex; gap: 0.75rem">
+								<button class="btn btn-secondary" @click="showJoinModal = true">
+									# Join Circle
+								</button>
+								<button class="btn btn-primary" @click="showCreateModal = true">
+									+ Create Circle
+								</button>
 							</div>
+						</div>
 
-							<h2>{{ circle.name }}</h2>
-							<p class="circle-card__desc">
-								{{ circle.description || "No description provided." }}
-							</p>
-
-							<div class="circle-card__stats">
-								<div class="circle-card__stat-row">
-									<div class="circle-card__stat" :title="circle.unread_post_count + ' unread posts'">
-										<span>📰</span>
-										<span
-											class="circle-card__stat-count"
-											:class="{ 'has-unread': circle.unread_post_count > 0 }"
-										>{{ circle.unread_post_count }}</span>
+						<div class="circles-grid">
+							<div
+								v-for="circle in circleStore.circles"
+								:key="circle.id"
+								class="circle-card"
+								@click="selectCircle(circle)"
+							>
+								<div class="circle-card__header">
+									<div class="circle-card__avatar">
+										{{ circle.name ? circle.name[0].toUpperCase() : "?" }}
 									</div>
-									<div class="circle-card__stat" :title="circle.unread_chat_count + ' unread messages'">
-										<span>💬</span>
-										<span
-											class="circle-card__stat-count"
-											:class="{ 'has-unread': circle.unread_chat_count > 0 }"
-										>{{ circle.unread_chat_count }}</span>
-									</div>
-								</div>
-
-								<div v-if="circle.last_post_at">
-									<div class="circle-card__activity-label">Last Activity</div>
-									<div class="circle-card__activity-row">
-										<span
-											class="circle-card__activity-title"
-											:title="circle.last_post_title"
-										>{{ circle.last_post_title || "New post" }}</span>
-										<span class="circle-card__activity-time">
-											{{ formatDate(circle.last_post_at) }}
+									<div class="circle-card__meta">
+										<span class="role-badge">{{ circle.role }}</span>
+										<span style="font-size: var(--text-xs); color: var(--fg-3)">
+											{{ circle.member_count }} members
 										</span>
 									</div>
 								</div>
-								<div v-else style="font-size: 10px; font-style: italic; color: var(--fg-3)">
-									No recent activity
+
+								<h2>{{ circle.name }}</h2>
+								<p class="circle-card__desc">
+									{{ circle.description || "No description provided." }}
+								</p>
+
+								<div class="circle-card__stats">
+									<div class="circle-card__stat-row">
+										<div
+											class="circle-card__stat"
+											:title="circle.unread_post_count + ' unread posts'"
+										>
+											<span>📰</span>
+											<span
+												class="circle-card__stat-count"
+												:class="{ 'has-unread': circle.unread_post_count > 0 }"
+												>{{ circle.unread_post_count }}</span
+											>
+										</div>
+										<div
+											class="circle-card__stat"
+											:title="circle.unread_chat_count + ' unread messages'"
+										>
+											<span>💬</span>
+											<span
+												class="circle-card__stat-count"
+												:class="{ 'has-unread': circle.unread_chat_count > 0 }"
+												>{{ circle.unread_chat_count }}</span
+											>
+										</div>
+									</div>
+
+									<div v-if="circle.last_post_at">
+										<div class="circle-card__activity-label">Last Activity</div>
+										<div class="circle-card__activity-row">
+											<span
+												class="circle-card__activity-title"
+												:title="circle.last_post_title"
+												>{{ circle.last_post_title || "New post" }}</span
+											>
+											<span class="circle-card__activity-time">
+												{{ formatDate(circle.last_post_at) }}
+											</span>
+										</div>
+									</div>
+									<div
+										v-else
+										style="
+											font-size: 10px;
+											font-style: italic;
+											color: var(--fg-3);
+										"
+									>
+										No recent activity
+									</div>
 								</div>
 							</div>
 						</div>
@@ -218,8 +244,7 @@ const joinInviteCode = ref("");
 const activeCircle = computed(() => circleStore.activeCircle);
 
 const applyPalette = (circle) => {
-	const stored = circle?.id ? localStorage.getItem(`circle-palette-${circle.id}`) : null;
-	const palette = stored || circle?.palette || "violet";
+	const palette = circle?.palette || "violet";
 	const palettes = ["violet", "ocean", "ember", "forest", "rose", "slate"];
 	palettes.forEach((p) => document.body.classList.remove(`palette-${p}`));
 	if (palette !== "violet") {

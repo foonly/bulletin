@@ -5,7 +5,9 @@
 			<div class="error-state__icon">🚫</div>
 			<h2>{{ error.title }}</h2>
 			<p>{{ error.message }}</p>
-			<router-link to="/" class="btn btn-primary">Return to Dashboard</router-link>
+			<router-link to="/" class="btn btn-primary"
+				>Return to Dashboard</router-link
+			>
 		</div>
 
 		<template v-else>
@@ -22,8 +24,16 @@
 						:class="{ 'text-accent': $route.name === 'circle-settings' }"
 						title="Settings"
 					>
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-							<path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 20 20"
+							fill="currentColor"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+								clip-rule="evenodd"
+							/>
 						</svg>
 					</router-link>
 				</div>
@@ -43,14 +53,6 @@
 					<!-- Nav -->
 					<nav class="circle-nav">
 						<router-link
-							:to="{ name: 'circle-new-thread', params: { id } }"
-							class="circle-nav__new-thread"
-						>
-							<span>+</span>
-							<span>Start New Thread</span>
-						</router-link>
-
-						<router-link
 							:to="{ name: 'circle-chat', params: { id } }"
 							:class="['nav-item', { active: $route.name === 'circle-chat' }]"
 						>
@@ -59,7 +61,8 @@
 							<span
 								v-if="unreadChatCount > 0 && $route.name !== 'circle-chat'"
 								class="unread-pill"
-							>{{ unreadChatCount }}</span>
+								>{{ unreadChatCount }}</span
+							>
 						</router-link>
 
 						<router-link
@@ -74,13 +77,17 @@
 							]"
 						>
 							<span>📊</span>
-							<span>{{ $route.name === 'circle-search' ? 'Search Results' : 'Dashboard' }}</span>
+							<span>{{
+								$route.name === "circle-search" ? "Search Results" : "Dashboard"
+							}}</span>
 						</router-link>
 					</nav>
 
 					<!-- Tags -->
 					<div>
-						<p class="tag-section-title" style="margin-bottom: 0.375rem">Browse Tags</p>
+						<p class="tag-section-title" style="margin-bottom: 0.375rem">
+							Browse Tags
+						</p>
 						<nav class="circle-nav">
 							<div
 								v-for="tag in circleStore.tags"
@@ -88,12 +95,17 @@
 								class="tag-list-item"
 							>
 								<router-link
-									:to="{ name: 'circle-posts', params: { id }, query: { tag: tag.name } }"
+									:to="{
+										name: 'circle-posts',
+										params: { id },
+										query: { tag: tag.name },
+									}"
 									:class="[
 										'nav-item',
 										{
 											'router-link-tag-active':
-												$route.name === 'circle-posts' && $route.query.tag === tag.name,
+												$route.name === 'circle-posts' &&
+												$route.query.tag === tag.name,
 										},
 									]"
 									style="flex: 1"
@@ -110,25 +122,40 @@
 									class="tag-pin-btn"
 									@click="togglePin(tag.id, true)"
 									title="Pin tag"
-								>Pin</button>
+								>
+									Pin
+								</button>
 								<button
 									v-if="isAdmin && tag.is_pinned"
 									class="tag-pin-btn pinned"
 									@click="togglePin(tag.id, false)"
 									title="Unpin tag"
-								>Unpin</button>
+								>
+									Unpin
+								</button>
 							</div>
 						</nav>
 					</div>
 
 					<!-- Members -->
 					<div>
-						<div class="member-section-header" @click="membersExpanded = !membersExpanded">
+						<div
+							class="member-section-header"
+							@click="membersExpanded = !membersExpanded"
+						>
 							<h3>Members ({{ members.length }})</h3>
 							<span class="chevron" :class="{ open: membersExpanded }">▼</span>
 						</div>
 
-						<div v-if="membersExpanded" style="margin-top: 0.375rem; display: flex; flex-direction: column; gap: 0.25rem">
+						<div
+							v-if="membersExpanded"
+							style="
+								margin-top: 0.375rem;
+								display: flex;
+								flex-direction: column;
+								gap: 0.25rem;
+							"
+						>
 							<button
 								v-if="canInvite"
 								class="invite-btn"
@@ -167,17 +194,18 @@
 
 			<!-- Circle content -->
 			<div class="circle-content">
-				<router-view :members="members"></router-view>
+				<router-view v-slot="{ Component }">
+					<component :is="Component" v-bind="route.params" :members="members" />
+				</router-view>
 			</div>
 		</template>
+		<InviteModal
+			:show="showInviteModal"
+			:id="id"
+			@close="showInviteModal = false"
+			@created="circleStore.fetchInvites(id)"
+		/>
 	</div>
-
-	<InviteModal
-		:show="showInviteModal"
-		:id="id"
-		@close="showInviteModal = false"
-		@created="circleStore.fetchInvites(id)"
-	/>
 </template>
 
 <script setup>

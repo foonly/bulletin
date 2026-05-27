@@ -42,6 +42,7 @@ type Circle struct {
 	InviteMinRole      CircleRole `json:"invite_min_role"`
 	ChatRetentionDays  int        `json:"chat_retention_days"`
 	ChatRetentionCount int        `json:"chat_retention_count"`
+	Palette            string     `json:"palette"`
 	CreatedAt          time.Time  `json:"created_at"`
 	LastReadAt         *time.Time `json:"last_read_at,omitempty"`
 	UnreadCount        int        `json:"unread_count"`

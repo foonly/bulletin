@@ -1,0 +1,1 @@
+ALTER TABLE circles ADD COLUMN palette TEXT NOT NULL DEFAULT 'violet';

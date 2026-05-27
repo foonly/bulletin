@@ -45,13 +45,41 @@ watch(() => props.id, loadThreads);
 
 <template>
 	<div class="thread-list">
-		<div style="margin-bottom: 1.25rem">
-			<h1 v-if="!route.query.tag">Circle Dashboard</h1>
-			<h1 v-else>#{{ route.query.tag }}</h1>
-			<p style="font-size: var(--text-sm); color: var(--fg-3); margin-top: 0.25rem">
-				<template v-if="!route.query.tag">Showing threads with unread activity.</template>
-				<template v-else>Showing all threads tagged with #{{ route.query.tag }}.</template>
-			</p>
+		<div
+			style="
+				margin-bottom: 1.25rem;
+				display: flex;
+				justify-content: space-between;
+				align-items: flex-start;
+			"
+		>
+			<div>
+				<h1 v-if="!route.query.tag">Circle Dashboard</h1>
+				<h1 v-else>#{{ route.query.tag }}</h1>
+				<p
+					style="
+						font-size: var(--text-sm);
+						color: var(--fg-3);
+						margin-top: 0.25rem;
+					"
+				>
+					<template v-if="!route.query.tag"
+						>Showing threads with unread activity.</template
+					>
+					<template v-else
+						>Showing all threads tagged with #{{ route.query.tag }}.</template
+					>
+				</p>
+			</div>
+			<router-link
+				:to="{
+					name: 'circle-new-thread',
+					params: { id },
+					query: route.query.tag ? { tag: route.query.tag } : {},
+				}"
+				class="btn btn-primary"
+				>Start new thread</router-link
+			>
 		</div>
 
 		<div
@@ -64,7 +92,9 @@ watch(() => props.id, loadThreads);
 			<div class="thread-item__header">
 				<div>
 					<span class="thread-item__author">{{ thread.author_name }}</span>
-					<span class="thread-item__date">{{ formatDate(thread.created_at) }}</span>
+					<span class="thread-item__date">{{
+						formatDate(thread.created_at)
+					}}</span>
 				</div>
 				<span v-if="thread.unread_count > 0" class="new-pill">
 					{{ thread.unread_count }} new
@@ -80,7 +110,8 @@ watch(() => props.id, loadThreads);
 					class="tag-chip"
 					:class="{ active: route.query.tag === tag }"
 					@click.stop="filterByTag(tag)"
-				>#{{ tag }}</span>
+					>#{{ tag }}</span
+				>
 			</div>
 
 			<p class="thread-item__preview">{{ stripMarkdown(thread.content) }}</p>
@@ -88,7 +119,9 @@ watch(() => props.id, loadThreads);
 			<div class="thread-item__footer">
 				<div style="display: flex; gap: 1rem">
 					<span>{{ thread.reply_count }} replies</span>
-					<span v-if="thread.last_reply_at">Last reply: {{ formatDate(thread.last_reply_at) }}</span>
+					<span v-if="thread.last_reply_at"
+						>Last reply: {{ formatDate(thread.last_reply_at) }}</span
+					>
 				</div>
 			</div>
 		</div>

@@ -1,14 +1,21 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useCircleStore } from "../../stores/circles";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { renderMarkdown } from "../../utils/markdown";
 
 const props = defineProps(["id"]);
 const circleStore = useCircleStore();
 const router = useRouter();
+const route = useRoute();
 
 const newPost = ref({ title: "", content: "", tags: [] });
+
+onMounted(() => {
+	if (route.query.tag && !newPost.value.tags.includes(route.query.tag)) {
+		newPost.value.tags.push(route.query.tag);
+	}
+});
 const newTagName = ref("");
 const showPreview = ref(false);
 
@@ -43,17 +50,28 @@ const addCustomTag = () => {
 <template>
 	<div style="max-width: var(--content-max); margin: 0 auto; width: 100%">
 		<div class="section-card">
-			<div style="display: flex; align-items: center; justify-content: space-between">
+			<div
+				style="
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+				"
+			>
 				<h3>Start a new thread</h3>
 				<button
 					class="btn-icon"
 					@click="router.push({ name: 'circle-posts', params: { id } })"
-				>✕</button>
+				>
+					✕
+				</button>
 			</div>
 
 			<div class="field">
 				<label class="label-uppercase">Title</label>
-				<input v-model="newPost.title" placeholder="Give your thread a clear title" />
+				<input
+					v-model="newPost.title"
+					placeholder="Give your thread a clear title"
+				/>
 			</div>
 
 			<div class="field">
@@ -70,7 +88,13 @@ const addCustomTag = () => {
 				<div
 					v-if="showPreview"
 					class="markdown-content"
-					style="min-height: 200px; background: var(--bg-sunken); padding: 0.75rem; border-radius: var(--r-md); border: 1px solid var(--border)"
+					style="
+						min-height: 200px;
+						background: var(--bg-sunken);
+						padding: 0.75rem;
+						border-radius: var(--r-md);
+						border: 1px solid var(--border);
+					"
 					v-html="renderMarkdown(newPost.content)"
 				></div>
 				<textarea
@@ -83,32 +107,56 @@ const addCustomTag = () => {
 
 			<div class="field">
 				<label class="label-uppercase">Tags (at least one required)</label>
-				<div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.375rem">
+				<div
+					style="
+						display: flex;
+						flex-wrap: wrap;
+						gap: 0.5rem;
+						margin-top: 0.375rem;
+					"
+				>
 					<button
 						v-for="tag in circleStore.tags"
 						:key="tag.id"
 						class="tag-chip"
 						:class="{ active: newPost.tags.includes(tag.name) }"
 						@click="toggleTagSelection(tag.name)"
-					>{{ tag.name }}</button>
+					>
+						{{ tag.name }}
+					</button>
 
 					<input
 						v-if="circleStore.activeCircle?.allow_freeform_tags"
 						v-model="newTagName"
 						@keyup.enter="addCustomTag"
 						placeholder="Add custom tag…"
-						style="width: 140px; font-size: var(--text-xs); padding: 0.2em 0.625em; border-radius: var(--r-pill)"
+						style="
+							width: 140px;
+							font-size: var(--text-xs);
+							padding: 0.2em 0.625em;
+							border-radius: var(--r-pill);
+						"
 					/>
 				</div>
 
-				<div v-if="newPost.tags.length > 0" style="display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.5rem">
+				<div
+					v-if="newPost.tags.length > 0"
+					style="
+						display: flex;
+						flex-wrap: wrap;
+						gap: 0.375rem;
+						margin-top: 0.5rem;
+					"
+				>
 					<span
 						v-for="tag in newPost.tags"
 						:key="tag"
 						class="tag-chip tag-chip-selected"
 					>
 						{{ tag }}
-						<button class="tag-remove" @click="toggleTagSelection(tag)">×</button>
+						<button class="tag-remove" @click="toggleTagSelection(tag)">
+							×
+						</button>
 					</span>
 				</div>
 			</div>
@@ -117,12 +165,20 @@ const addCustomTag = () => {
 				<button
 					class="btn btn-ghost"
 					@click="router.push({ name: 'circle-posts', params: { id } })"
-				>Cancel</button>
+				>
+					Cancel
+				</button>
 				<button
 					class="btn btn-primary"
 					@click="handleCreatePost"
-					:disabled="!newPost.content.trim() || !newPost.title.trim() || newPost.tags.length === 0"
-				>Create Thread</button>
+					:disabled="
+						!newPost.content.trim() ||
+						!newPost.title.trim() ||
+						newPost.tags.length === 0
+					"
+				>
+					Create Thread
+				</button>
 			</div>
 		</div>
 	</div>
