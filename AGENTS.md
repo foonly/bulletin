@@ -7,6 +7,7 @@ Bulletin is a community platform for organizing discussions and real-time chat w
 - **Backend**: Go (Golang) API.
 - **Frontend**: Vue.js with Pinia for state management.
 - **Styling**: Modular CSS in `frontend/src/styles/` using CSS Custom Properties and standard CSS nesting.
+- **Documentation**: Detailed project specifications and API references are available in the `docs/` folder.
 
 ## Core Principles
 
