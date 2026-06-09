@@ -1,11 +1,13 @@
 <script setup>
 import { onMounted, watch, computed } from "vue";
 import { useCircleStore } from "../../stores/circles";
+import { useAuthStore } from "../../stores/auth";
 import { useRouter, useRoute } from "vue-router";
-import { stripMarkdown } from "../../utils/markdown";
+import { stripMarkdown, renderMarkdown } from "../../utils/markdown";
 
 const props = defineProps(["id"]);
 const circleStore = useCircleStore();
+const auth = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 
@@ -31,8 +33,22 @@ const filterByTag = (tagName) => {
 
 const filteredThreads = computed(() => {
 	if (route.query.tag) return circleStore.threads;
-	return circleStore.threads.filter((t) => t.unread_count > 0);
+	const unread = circleStore.threads.filter((t) => t.unread_count > 0);
+	if (unread.length >= 4) return unread.slice(0, 6);
+	const read = circleStore.threads.filter((t) => t.unread_count === 0);
+	return [...unread, ...read].slice(0, 4);
 });
+
+const lastChatMessages = computed(() => {
+	return (circleStore.chatMessages || []).slice(-3);
+});
+
+const isUnreadChat = (msg) => {
+	if (msg.user_id === auth.user?.id) return false;
+	const lastRead = circleStore.activeCircle?.last_read_at;
+	if (!lastRead) return true;
+	return new Date(msg.created_at) > new Date(lastRead);
+};
 
 const loadThreads = () => {
 	circleStore.fetchThreads(props.id, route.query.tag || "");
@@ -51,7 +67,7 @@ watch(() => props.id, loadThreads);
 				<h1 v-else>#{{ route.query.tag }}</h1>
 				<p class="thread-list__header-meta">
 					<template v-if="!route.query.tag"
-						>Showing threads with unread activity.</template
+						>Showing recent activity and unread threads.</template
 					>
 					<template v-else
 						>Showing all threads tagged with #{{ route.query.tag }}.</template
@@ -122,12 +138,52 @@ watch(() => props.id, loadThreads);
 			<template v-if="!route.query.tag">
 				<div class="empty-state__icon">✅</div>
 				<h3>You're all caught up!</h3>
-				<p>No unread threads in this circle.</p>
+				<p>No threads in this circle yet.</p>
 			</template>
 			<template v-else>
 				<div class="empty-state__icon">📭</div>
 				<p>No threads found with this tag.</p>
 			</template>
+		</div>
+
+		<!-- Recent Chat (only on dashboard) -->
+		<div
+			v-if="!route.query.tag && lastChatMessages.length > 0"
+			class="recent-chat"
+		>
+			<div class="recent-chat__header">
+				<h3>Recent Chat</h3>
+				<router-link
+					:to="{ name: 'circle-chat', params: { id } }"
+					class="btn-link"
+				>
+					Open Chat →
+				</router-link>
+			</div>
+			<div class="recent-chat__messages">
+				<div
+					v-for="msg in lastChatMessages"
+					:key="msg.id"
+					class="chat-message chat-message--mini"
+					:class="{
+						'is-own': msg.user_id === auth.user?.id,
+						'is-unread': isUnreadChat(msg),
+					}"
+				>
+					<span
+						class="chat-message__author"
+						:class="{ 'is-own': msg.user_id === auth.user?.id }"
+						>{{ msg.username }}:</span
+					>
+					<span
+						class="chat-message__content markdown-content"
+						v-html="renderMarkdown(msg.content)"
+					></span>
+					<span class="chat-message__time">{{
+						formatDate(msg.created_at)
+					}}</span>
+				</div>
+			</div>
 		</div>
 	</div>
 </template>
