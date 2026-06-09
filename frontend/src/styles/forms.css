@@ -140,7 +140,7 @@ input[type="checkbox"] {
 
 .search-field input,
 .search-field input[type="search"] {
-	padding-left: 2.25rem;
+	padding-left: 3.25rem;
 	font-size: var(--text-sm);
 }
 
