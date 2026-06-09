@@ -3,14 +3,6 @@
 	line-height: 1.7;
 	color: var(--fg-2);
 
-	&--preview {
-		min-height: 200px;
-		background: var(--bg-sunken);
-		padding: 0.75rem;
-		border-radius: var(--r-md);
-		border: 1px solid var(--border);
-	}
-
 	& h1 {
 		font-size: var(--text-2xl);
 		font-weight: 700;
@@ -119,4 +111,12 @@
 		border-top: 1px solid var(--border);
 		margin: 1.5rem 0;
 	}
+}
+
+.markdown-content--preview {
+	min-height: 200px;
+	background: var(--bg-sunken);
+	padding: 0.75rem;
+	border-radius: var(--r-md);
+	border: 1px solid var(--border);
 }
