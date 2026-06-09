@@ -75,7 +75,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-	<div>
+	<div class="content-container">
 		<button
 			class="btn btn-ghost"
 			@click="router.push({ name: 'circle-posts', params: { id } })"
@@ -84,7 +84,14 @@ onUnmounted(() => {
 			← Back to all threads
 		</button>
 
-		<div style="display: flex; flex-direction: column; gap: 1rem; padding-bottom: 3rem">
+		<div
+			style="
+				display: flex;
+				flex-direction: column;
+				gap: 1rem;
+				padding-bottom: 3rem;
+			"
+		>
 			<ThreadNode
 				v-if="threadTree"
 				:node="threadTree"

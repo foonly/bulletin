@@ -244,6 +244,11 @@
 	padding: 1.25rem;
 }
 
+.content-container {
+	max-width: var(--content-max);
+	width: 100%;
+}
+
 .mobile-only {
 	display: none;
 }
@@ -358,17 +363,11 @@
    CIRCLE SETTINGS PAGE
    ============================================================ */
 .circle-settings {
-	max-width: 680px;
-	margin: 0 auto;
+	max-width: var(--content-max);
+	width: 100%;
 	display: flex;
 	flex-direction: column;
 	gap: 2rem;
-}
-
-.container-new-thread {
-	max-width: var(--content-max);
-	margin: 0 auto;
-	width: 100%;
 }
 
 /* ============================================================

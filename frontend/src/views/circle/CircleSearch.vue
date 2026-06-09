@@ -43,7 +43,10 @@ watch(() => route.query.q, performSearch);
 </script>
 
 <template>
-	<div style="display: flex; flex-direction: column; gap: 1.5rem">
+	<div
+		class="content-container"
+		style="display: flex; flex-direction: column; gap: 1.5rem"
+	>
 		<div
 			style="display: flex; align-items: center; justify-content: space-between"
 		>

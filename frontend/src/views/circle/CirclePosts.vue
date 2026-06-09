@@ -60,7 +60,7 @@ watch(() => props.id, loadThreads);
 </script>
 
 <template>
-	<div class="thread-list">
+	<div class="thread-list content-container">
 		<div class="thread-list__header">
 			<div>
 				<h1 v-if="!route.query.tag">Circle Dashboard</h1>

@@ -48,7 +48,7 @@ const addCustomTag = () => {
 </script>
 
 <template>
-	<div class="container-new-thread">
+	<div class="content-container">
 		<div class="section-card">
 			<div class="section-card__header">
 				<h3>Start a new thread</h3>

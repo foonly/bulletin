@@ -78,7 +78,7 @@ watch(() => circleStore.chatMessages?.length, handleNewMessage);
 </script>
 
 <template>
-	<div class="chat-view">
+	<div class="chat-view content-container">
 		<div class="chat-messages" ref="chatBox">
 			<div
 				v-for="msg in circleStore.chatMessages"
