@@ -7,11 +7,21 @@
 				<form @submit.prevent="handleLogin">
 					<div class="field">
 						<label for="login-username">Username</label>
-						<input id="login-username" v-model="username" type="text" required />
+						<input
+							id="login-username"
+							v-model="username"
+							type="text"
+							required
+						/>
 					</div>
 					<div class="field">
 						<label for="login-password">Password</label>
-						<input id="login-password" v-model="password" type="password" required />
+						<input
+							id="login-password"
+							v-model="password"
+							type="password"
+							required
+						/>
 					</div>
 					<button
 						type="submit"
@@ -66,8 +76,11 @@
 					<router-link to="/register">Register with invite</router-link>
 				</p>
 				<p>
-					<router-link to="/request-reset" style="color: var(--fg-3)">Forgot password?</router-link>
+					<router-link to="/request-reset" style="color: var(--fg-3)"
+						>Forgot password?</router-link
+					>
 				</p>
+				<p class="app-version" style="margin-top: 0.5rem">v{{ version }}</p>
 			</div>
 		</div>
 	</div>
@@ -75,6 +88,7 @@
 
 <script setup>
 import { ref } from "vue";
+import pkg from "../../package.json";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import { useRouter } from "vue-router";
@@ -82,6 +96,7 @@ import { useRouter } from "vue-router";
 const auth = useAuthStore();
 const toast = useToastStore();
 const router = useRouter();
+const version = pkg.version;
 const siteName = import.meta.env.VITE_SITE_NAME || "Bulletin";
 const username = ref("");
 const password = ref("");

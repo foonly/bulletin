@@ -116,6 +116,13 @@
 	}
 }
 
+.app-version {
+	font-size: var(--text-xs);
+	color: var(--fg-3);
+	font-family: var(--font-mono);
+	opacity: 0.8;
+}
+
 .app-header__logout {
 	font-size: var(--text-sm);
 	color: var(--error);

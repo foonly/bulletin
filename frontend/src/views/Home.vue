@@ -136,6 +136,7 @@
 					</router-link>
 				</div>
 				<nav class="app-header__nav">
+					<span class="app-version">v{{ version }}</span>
 					<router-link to="/settings">{{ auth.user?.username }}</router-link>
 					<button class="app-header__logout" @click="handleLogout">
 						Logout
@@ -246,6 +247,7 @@
 
 <script setup>
 import { onMounted, onUnmounted, computed, watch, ref } from "vue";
+import pkg from "../../package.json";
 import { useAuthStore } from "../stores/auth";
 import { useCircleStore } from "../stores/circles";
 import { useUIStore } from "../stores/ui";
@@ -260,6 +262,7 @@ const toast = useToastStore();
 const router = useRouter();
 const route = useRoute();
 
+const version = pkg.version;
 const siteName = import.meta.env.VITE_SITE_NAME || "Bulletin";
 
 const formatDate = (dateStr) => {
