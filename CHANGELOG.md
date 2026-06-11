@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.2.0
+### 0.2.1 (2026-06-11)
+
+#### Bug Fixes
+
+- layout: redesign app header navigation with icons (e707ef6)
+
+## v0.2.0 (2026-06-11)
 
 #### Features
 
