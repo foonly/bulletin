@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import { useCircleStore } from "../stores/circles";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
@@ -15,17 +15,36 @@ const circleStore = useCircleStore();
 const auth = useAuthStore();
 const toast = useToastStore();
 
-const canEdit = computed(() =>
-	auth.user?.id === props.node.author_id ||
-	circleStore.activeCircle?.role === "admin",
+const canEdit = computed(
+	() =>
+		auth.user?.id === props.node.author_id ||
+		circleStore.activeCircle?.role === "admin",
 );
 
 const showReplyBox = ref(false);
 const showReplyPreview = ref(false);
 const replyContent = ref("");
+const replyTextarea = ref(null);
 const isEditing = ref(false);
 const showEditPreview = ref(false);
 const editContent = ref("");
+const editTextarea = ref(null);
+
+watch(showReplyBox, (val) => {
+	if (val) nextTick(() => replyTextarea.value?.focus());
+});
+
+watch(isEditing, (val) => {
+	if (val) nextTick(() => editTextarea.value?.focus());
+});
+
+watch(showReplyPreview, (val) => {
+	if (!val && showReplyBox.value) nextTick(() => replyTextarea.value?.focus());
+});
+
+watch(showEditPreview, (val) => {
+	if (!val && isEditing.value) nextTick(() => editTextarea.value?.focus());
+});
 
 const isUnread = computed(() => {
 	if (props.node.author_id === auth.user?.id) return false;
@@ -60,7 +79,11 @@ const startEdit = () => {
 const submitEdit = async () => {
 	if (!editContent.value.trim()) return;
 	try {
-		await circleStore.updatePost(props.circleId, props.node.id, editContent.value);
+		await circleStore.updatePost(
+			props.circleId,
+			props.node.id,
+			editContent.value,
+		);
 		isEditing.value = false;
 		toast.success("Post updated!");
 		emit("reply-created");
@@ -70,7 +93,12 @@ const submitEdit = async () => {
 };
 
 const handleDelete = async () => {
-	if (!confirm("Are you sure you want to delete this? This action cannot be undone.")) return;
+	if (
+		!confirm(
+			"Are you sure you want to delete this? This action cannot be undone.",
+		)
+	)
+		return;
 	try {
 		await circleStore.deletePost(props.circleId, props.node.id);
 		toast.success(props.node.parent_id ? "Reply deleted" : "Thread deleted");
@@ -94,13 +122,22 @@ const handleDelete = async () => {
 			<div class="thread-post__header">
 				<div class="thread-post__author-row">
 					<div class="thread-post__avatar">
-						{{ node.is_deleted ? "?" : (node.author_name?.[0]?.toUpperCase() ?? "?") }}
+						{{
+							node.is_deleted
+								? "?"
+								: (node.author_name?.[0]?.toUpperCase() ?? "?")
+						}}
 					</div>
 					<span class="thread-post__author-name">
 						{{ node.is_deleted ? "Deleted" : node.author_name }}
 					</span>
-					<span class="thread-post__date">{{ formatDate(node.created_at) }}</span>
-					<span v-if="node.updated_at && !node.is_deleted" class="thread-post__edited">
+					<span class="thread-post__date">{{
+						formatDate(node.created_at)
+					}}</span>
+					<span
+						v-if="node.updated_at && !node.is_deleted"
+						class="thread-post__edited"
+					>
 						(edited {{ formatDate(node.updated_at) }})
 					</span>
 				</div>
@@ -110,16 +147,22 @@ const handleDelete = async () => {
 						v-if="canEdit && !isEditing"
 						class="thread-post__action-btn"
 						@click="startEdit"
-					>Edit</button>
+					>
+						Edit
+					</button>
 					<button
 						v-if="canEdit && !isEditing"
 						class="thread-post__action-btn delete"
 						@click="handleDelete"
-					>Delete</button>
+					>
+						Delete
+					</button>
 					<button
 						class="thread-post__action-btn reply"
 						@click="showReplyBox = !showReplyBox"
-					>{{ showReplyBox ? "Cancel" : "Reply" }}</button>
+					>
+						{{ showReplyBox ? "Cancel" : "Reply" }}
+					</button>
 				</div>
 			</div>
 
@@ -133,18 +176,37 @@ const handleDelete = async () => {
 						class="btn btn-ghost btn-sm"
 						style="color: var(--accent)"
 						@click="showEditPreview = !showEditPreview"
-					>{{ showEditPreview ? "Edit Text" : "Show Preview" }}</button>
+					>
+						{{ showEditPreview ? "Edit Text" : "Show Preview" }}
+					</button>
 				</div>
 				<div
 					v-if="showEditPreview"
 					class="markdown-content"
-					style="min-height: 100px; background: var(--bg-sunken); padding: 0.75rem; border-radius: var(--r-md); border: 1px solid var(--border); font-size: var(--text-sm)"
+					style="
+						min-height: 100px;
+						background: var(--bg-sunken);
+						padding: 0.75rem;
+						border-radius: var(--r-md);
+						border: 1px solid var(--border);
+						font-size: var(--text-sm);
+					"
 					v-html="renderMarkdown(editContent)"
 				></div>
-				<textarea v-else v-model="editContent" rows="4" style="font-size: var(--text-sm)"></textarea>
+				<textarea
+					v-else
+					ref="editTextarea"
+					v-model="editContent"
+					rows="4"
+					style="font-size: var(--text-sm)"
+				></textarea>
 				<div class="thread-post__edit-actions">
-					<button class="btn btn-ghost btn-sm" @click="isEditing = false">Cancel</button>
-					<button class="btn btn-primary btn-sm" @click="submitEdit">Save</button>
+					<button class="btn btn-ghost btn-sm" @click="isEditing = false">
+						Cancel
+					</button>
+					<button class="btn btn-primary btn-sm" @click="submitEdit">
+						Save
+					</button>
 				</div>
 			</div>
 
@@ -164,16 +226,26 @@ const handleDelete = async () => {
 						class="btn btn-ghost btn-sm"
 						style="color: var(--accent)"
 						@click="showReplyPreview = !showReplyPreview"
-					>{{ showReplyPreview ? "Edit Text" : "Show Preview" }}</button>
+					>
+						{{ showReplyPreview ? "Edit Text" : "Show Preview" }}
+					</button>
 				</div>
 				<div
 					v-if="showReplyPreview"
 					class="markdown-content"
-					style="min-height: 120px; background: var(--bg-sunken); padding: 0.75rem; border-radius: var(--r-md); border: 1px solid var(--border); font-size: var(--text-sm)"
+					style="
+						min-height: 120px;
+						background: var(--bg-sunken);
+						padding: 0.75rem;
+						border-radius: var(--r-md);
+						border: 1px solid var(--border);
+						font-size: var(--text-sm);
+					"
 					v-html="renderMarkdown(replyContent)"
 				></div>
 				<textarea
 					v-else
+					ref="replyTextarea"
 					v-model="replyContent"
 					placeholder="Write a reply…"
 					rows="5"
@@ -184,13 +256,18 @@ const handleDelete = async () => {
 						class="btn btn-primary btn-sm"
 						:disabled="!replyContent.trim()"
 						@click="submitReply"
-					>Post Reply</button>
+					>
+						Post Reply
+					</button>
 				</div>
 			</div>
 		</div>
 
 		<!-- Nested replies -->
-		<div v-if="node.replies?.length" style="display: flex; flex-direction: column; gap: 1rem">
+		<div
+			v-if="node.replies?.length"
+			style="display: flex; flex-direction: column; gap: 1rem"
+		>
 			<ThreadNode
 				v-for="reply in node.replies"
 				:key="reply.id"

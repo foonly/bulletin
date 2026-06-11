@@ -8,6 +8,7 @@ const props = defineProps(["id"]);
 const circleStore = useCircleStore();
 const auth = useAuthStore();
 const chatInput = ref("");
+const messageInput = ref(null);
 const chatBox = ref(null);
 const chatReadTimer = ref(null);
 
@@ -67,6 +68,9 @@ onMounted(() => {
 	scrollToBottom();
 	startChatReadTracking();
 	window.addEventListener("chat-message-received", handleNewMessage);
+	nextTick(() => {
+		messageInput.value?.focus();
+	});
 });
 
 onUnmounted(() => {
@@ -104,6 +108,7 @@ watch(() => circleStore.chatMessages?.length, handleNewMessage);
 
 		<div class="chat-input-row">
 			<input
+				ref="messageInput"
 				v-model="chatInput"
 				@keyup.enter="sendChatMessage"
 				placeholder="Type a message..."
