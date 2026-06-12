@@ -1,6 +1,16 @@
 # Changelog
 
-### 0.2.1 (2026-06-11)
+## 0.3.0 (2026-06-13)
+
+#### Features
+
+- socket: migrate to global websocket connection (23ba125)
+
+#### Refactor
+
+- api: simplify loop syntax and optimize string building (a9fd521)
+
+### v0.2.1 (2026-06-11)
 
 #### Bug Fixes
 
