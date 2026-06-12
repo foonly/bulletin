@@ -83,8 +83,8 @@ func main() {
 	r.Use(auth.SessionMiddleware(pool))
 
 	authHandler := auth.NewHandler(pool, appMailer)
-	postHandler := posts.NewHandler(pool)
 	chatHub := chat.NewHub(pool)
+	postHandler := posts.NewHandler(pool, chatHub)
 	go chatHub.Run()
 
 	// Start background chat cleanup worker (runs every hour)
@@ -140,9 +140,10 @@ func main() {
 				r.Get("/invites", postHandler.ListInvites)
 				r.Post("/invites", postHandler.CreateInvite)
 				r.Delete("/invites/{inviteID}", postHandler.DeleteInvite)
-				r.Get("/chat/ws", chatHub.HandleWS)
 				r.Get("/chat/history", chatHub.GetHistory)
 			})
+
+			r.Get("/chat/ws", chatHub.HandleWS)
 		})
 	})
 

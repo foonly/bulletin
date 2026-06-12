@@ -2,11 +2,13 @@
 import { ref, onMounted, onUnmounted, nextTick, watch, computed } from "vue";
 import { useCircleStore } from "../../stores/circles";
 import { useAuthStore } from "../../stores/auth";
+import { useSocketStore } from "../../stores/socket";
 import { renderMarkdown } from "../../utils/markdown";
 
 const props = defineProps(["id"]);
 const circleStore = useCircleStore();
 const auth = useAuthStore();
+const socketStore = useSocketStore();
 const chatInput = ref("");
 const messageInput = ref(null);
 const chatBox = ref(null);
@@ -52,9 +54,7 @@ const startChatReadTracking = () => {
 
 const sendChatMessage = () => {
 	if (!chatInput.value.trim()) return;
-	window.dispatchEvent(
-		new CustomEvent("send-chat-message", { detail: chatInput.value }),
-	);
+	socketStore.sendChatMessage(props.id, chatInput.value);
 	chatInput.value = "";
 };
 
