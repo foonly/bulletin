@@ -31,7 +31,7 @@ func main() {
 	var err error
 
 	// Retry connecting to DB
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		pool, err = pgxpool.New(context.Background(), dbURL)
 		if err == nil {
 			err = pool.Ping(context.Background())
