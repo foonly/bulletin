@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.4.0 (2026-06-23)
+## 0.5.0 (2026-06-23)
+
+#### Features
+
+- socket: move message sound playback to socket store (672c823)
+
+## v0.4.0 (2026-06-23)
 
 #### Features
 
