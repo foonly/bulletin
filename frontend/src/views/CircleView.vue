@@ -211,6 +211,8 @@ import axios from "axios";
 import { useRouter, useRoute } from "vue-router";
 import { showBrowserNotification } from "../utils/notifications";
 
+const messageSound = new Audio("/new-message.mp3");
+
 const props = defineProps(["id"]);
 const circleStore = useCircleStore();
 const auth = useAuthStore();
@@ -321,6 +323,13 @@ const connectWS = () => {
 			window.dispatchEvent(
 				new CustomEvent("chat-message-received", { detail: msg }),
 			);
+
+			if (msg.user_id !== auth.user?.id) {
+				messageSound.play().catch((err) => {
+					// Browser might block autoplay if no user interaction yet
+					console.log("Audio playback blocked:", err);
+				});
+			}
 
 			if (route.name !== "circle-chat" && msg.user_id !== auth.user?.id) {
 				circleStore.incrementUnreadChat(props.id);
