@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.3.0 (2026-06-13)
+## 0.4.0 (2026-06-23)
+
+#### Features
+
+- chat: play notification sound on new message (80cf808)
+
+## v0.3.0 (2026-06-13)
 
 #### Features
 
