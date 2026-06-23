@@ -216,8 +216,6 @@ import { useRouter, useRoute } from "vue-router";
 import { showBrowserNotification } from "../utils/notifications";
 import { useSocketStore } from "../stores/socket";
 
-const messageSound = new Audio("/new-message.mp3");
-
 const props = defineProps(["id"]);
 const circleStore = useCircleStore();
 const auth = useAuthStore();
@@ -292,27 +290,6 @@ const loadCircleData = async () => {
 		if (members.value.length <= 8) {
 			membersExpanded.value = true;
 		}
-
-		// Connect socket if not already handled by a global or shared setup
-		socketStore.connect(props.id, (msg) => {
-			if (msg.type === "chat" || (!msg.type && msg.content)) {
-				if (msg.user_id !== auth.user?.id) {
-					messageSound.play().catch((err) => {
-						console.log("Audio playback blocked:", err);
-					});
-
-					if (route.name !== "circle-chat") {
-						circleStore.incrementUnreadChat(props.id);
-						if (auth.notificationsEnabled) {
-							showBrowserNotification(
-								`New message in ${circleStore.activeCircle?.name}`,
-								{ body: `${msg.username}: ${msg.content}` },
-							);
-						}
-					}
-				}
-			}
-		});
 	} catch (err) {
 		console.error("Failed to load circle data:", err);
 		error.value = {
@@ -336,7 +313,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-	socketStore.disconnect();
 	window.removeEventListener("refresh-members", loadCircleData);
 });
 

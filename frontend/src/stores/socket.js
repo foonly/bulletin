@@ -8,6 +8,7 @@ export const useSocketStore = defineStore("socket", {
 		socket: null,
 		onlineUserIds: new Set(),
 		isConnected: false,
+		messageSound: new Audio("/new-message.mp3"),
 	}),
 	actions: {
 		connect() {
@@ -39,6 +40,13 @@ export const useSocketStore = defineStore("socket", {
 					this.onlineUserIds.delete(msg.user_id);
 					this.onlineUserIds = new Set(this.onlineUserIds);
 				} else if (msg.type === "chat") {
+					// Play sound for all incoming messages from others
+					if (msg.user_id !== auth.user?.id) {
+						this.messageSound.play().catch((err) => {
+							console.log("Audio playback blocked:", err);
+						});
+					}
+
 					// Add message to store if it's the active circle
 					if (circleStore.activeCircle?.id === msg.circle_id) {
 						circleStore.addChatMessage(msg);
