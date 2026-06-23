@@ -27,11 +27,11 @@ func NewMailer(host string, port int, from, username, password string, useTLS bo
 }
 
 func (m *Mailer) Send(to, subject, body string) error {
-	msg := []byte(fmt.Sprintf("From: %s\r\n"+
+	msg := fmt.Appendf(nil, "From: %s\r\n"+
 		"To: %s\r\n"+
 		"Subject: %s\r\n"+
 		"\r\n"+
-		"%s\r\n", m.From, to, subject, body))
+		"%s\r\n", m.From, to, subject, body)
 
 	addr := fmt.Sprintf("%s:%d", m.Host, m.Port)
 

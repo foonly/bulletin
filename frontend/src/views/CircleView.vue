@@ -159,12 +159,16 @@
 									v-for="member in members"
 									:key="member.id"
 									class="member-item"
-									:class="{ online: onlineUserIds.has(member.id) }"
+									:class="{ online: socketStore.onlineUserIds.has(member.id) }"
 									:title="member.username"
 								>
 									<span
 										class="presence-dot"
-										:class="onlineUserIds.has(member.id) ? 'online' : 'offline'"
+										:class="
+											socketStore.onlineUserIds.has(member.id)
+												? 'online'
+												: 'offline'
+										"
 									></span>
 									<span class="member-name">{{ member.username }}</span>
 								</div>
@@ -210,6 +214,7 @@ import { useToastStore } from "../stores/toast";
 import axios from "axios";
 import { useRouter, useRoute } from "vue-router";
 import { showBrowserNotification } from "../utils/notifications";
+import { useSocketStore } from "../stores/socket";
 
 const messageSound = new Audio("/new-message.mp3");
 
@@ -218,11 +223,11 @@ const circleStore = useCircleStore();
 const auth = useAuthStore();
 const ui = useUIStore();
 const toast = useToastStore();
+const socketStore = useSocketStore();
 const router = useRouter();
 const route = useRoute();
 
 const members = ref([]);
-const onlineUserIds = ref(new Set());
 const error = ref(null);
 const searchQuery = ref("");
 const membersExpanded = ref(false);
@@ -236,8 +241,6 @@ const handleSearch = () => {
 	});
 	searchQuery.value = "";
 };
-
-let ws = null;
 
 const canManage = computed(() => {
 	const role = circleStore.activeCircle?.role;
@@ -290,7 +293,26 @@ const loadCircleData = async () => {
 			membersExpanded.value = true;
 		}
 
-		connectWS();
+		// Connect socket if not already handled by a global or shared setup
+		socketStore.connect(props.id, (msg) => {
+			if (msg.type === "chat" || (!msg.type && msg.content)) {
+				if (msg.user_id !== auth.user?.id) {
+					messageSound.play().catch((err) => {
+						console.log("Audio playback blocked:", err);
+					});
+
+					if (route.name !== "circle-chat") {
+						circleStore.incrementUnreadChat(props.id);
+						if (auth.notificationsEnabled) {
+							showBrowserNotification(
+								`New message in ${circleStore.activeCircle?.name}`,
+								{ body: `${msg.username}: ${msg.content}` },
+							);
+						}
+					}
+				}
+			}
+		});
 	} catch (err) {
 		console.error("Failed to load circle data:", err);
 		error.value = {
@@ -298,51 +320,6 @@ const loadCircleData = async () => {
 			message: "You are not a member of this circle or it has been deleted.",
 		};
 	}
-};
-
-const connectWS = () => {
-	if (ws) ws.close();
-	const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-	ws = new WebSocket(
-		`${protocol}//${window.location.host}/api/circles/${props.id}/chat/ws`,
-	);
-
-	ws.onmessage = (event) => {
-		const msg = JSON.parse(event.data);
-
-		if (msg.type === "presence") {
-			onlineUserIds.value = new Set(msg.online_ids);
-		} else if (msg.type === "join") {
-			onlineUserIds.value.add(msg.user_id);
-			onlineUserIds.value = new Set(onlineUserIds.value);
-		} else if (msg.type === "leave") {
-			onlineUserIds.value.delete(msg.user_id);
-			onlineUserIds.value = new Set(onlineUserIds.value);
-		} else {
-			circleStore.addChatMessage(msg);
-			window.dispatchEvent(
-				new CustomEvent("chat-message-received", { detail: msg }),
-			);
-
-			if (msg.user_id !== auth.user?.id) {
-				messageSound.play().catch((err) => {
-					// Browser might block autoplay if no user interaction yet
-					console.log("Audio playback blocked:", err);
-				});
-			}
-
-			if (route.name !== "circle-chat" && msg.user_id !== auth.user?.id) {
-				circleStore.incrementUnreadChat(props.id);
-
-				if (auth.notificationsEnabled) {
-					showBrowserNotification(
-						`New message in ${circleStore.activeCircle?.name}`,
-						{ body: `${msg.username}: ${msg.content}` },
-					);
-				}
-			}
-		}
-	};
 };
 
 const togglePin = async (tagId, isPinned) => {
@@ -353,21 +330,13 @@ const togglePin = async (tagId, isPinned) => {
 	}
 };
 
-const handleSendChatMessage = (e) => {
-	if (ws && ws.readyState === WebSocket.OPEN) {
-		ws.send(JSON.stringify({ content: e.detail }));
-	}
-};
-
 onMounted(() => {
 	loadCircleData();
-	window.addEventListener("send-chat-message", handleSendChatMessage);
 	window.addEventListener("refresh-members", loadCircleData);
 });
 
 onUnmounted(() => {
-	if (ws) ws.close();
-	window.removeEventListener("send-chat-message", handleSendChatMessage);
+	socketStore.disconnect();
 	window.removeEventListener("refresh-members", loadCircleData);
 });
 

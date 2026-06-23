@@ -17,9 +17,18 @@
 				</div>
 				<div class="field">
 					<label for="reg-password">Password</label>
-					<input id="reg-password" v-model="password" type="password" required />
+					<input
+						id="reg-password"
+						v-model="password"
+						type="password"
+						required
+					/>
 				</div>
-				<button type="submit" class="btn btn-primary btn-full" style="margin-top: 1.5rem">
+				<button
+					type="submit"
+					class="btn btn-primary btn-full"
+					style="margin-top: 1.5rem"
+				>
 					Register
 				</button>
 			</form>
@@ -28,6 +37,7 @@
 					Already have an account?
 					<router-link to="/login">Login</router-link>
 				</p>
+				<p class="app-version" style="margin-top: 0.5rem">v{{ version }}</p>
 			</div>
 		</div>
 	</div>
@@ -35,6 +45,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
+import pkg from "../../package.json";
 import { useAuthStore } from "../stores/auth";
 import { useToastStore } from "../stores/toast";
 import { useRouter, useRoute } from "vue-router";
@@ -43,6 +54,7 @@ const auth = useAuthStore();
 const toast = useToastStore();
 const router = useRouter();
 const route = useRoute();
+const version = pkg.version;
 const siteName = import.meta.env.VITE_SITE_NAME || "Bulletin";
 const inviteCode = ref("");
 const username = ref("");

@@ -31,7 +31,7 @@ func main() {
 	var err error
 
 	// Retry connecting to DB
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		pool, err = pgxpool.New(context.Background(), dbURL)
 		if err == nil {
 			err = pool.Ping(context.Background())
@@ -83,8 +83,8 @@ func main() {
 	r.Use(auth.SessionMiddleware(pool))
 
 	authHandler := auth.NewHandler(pool, appMailer)
-	postHandler := posts.NewHandler(pool)
 	chatHub := chat.NewHub(pool)
+	postHandler := posts.NewHandler(pool, chatHub)
 	go chatHub.Run()
 
 	// Start background chat cleanup worker (runs every hour)
@@ -140,9 +140,10 @@ func main() {
 				r.Get("/invites", postHandler.ListInvites)
 				r.Post("/invites", postHandler.CreateInvite)
 				r.Delete("/invites/{inviteID}", postHandler.DeleteInvite)
-				r.Get("/chat/ws", chatHub.HandleWS)
 				r.Get("/chat/history", chatHub.GetHistory)
 			})
+
+			r.Get("/chat/ws", chatHub.HandleWS)
 		})
 	})
 

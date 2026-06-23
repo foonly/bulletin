@@ -13,15 +13,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/username/bulletin/backend/internal/chat"
 	"github.com/username/bulletin/backend/internal/models"
 )
 
 type Handler struct {
-	DB *pgxpool.Pool
+	DB  *pgxpool.Pool
+	Hub *chat.Hub
 }
 
-func NewHandler(db *pgxpool.Pool) *Handler {
-	return &Handler{DB: db}
+func NewHandler(db *pgxpool.Pool, hub *chat.Hub) *Handler {
+	return &Handler{DB: db, Hub: hub}
 }
 
 func (h *Handler) JoinCircle(w http.ResponseWriter, r *http.Request) {
@@ -431,6 +433,11 @@ func (h *Handler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.Hub.Broadcast(chat.Message{
+		Type:     "unread_update",
+		CircleID: circleID,
+	})
+
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -824,6 +831,11 @@ func (h *Handler) DeletePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.Hub.Broadcast(chat.Message{
+		Type:     "unread_update",
+		CircleID: circleID,
+	})
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -846,6 +858,11 @@ func (h *Handler) UpdateReadMarker(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.Hub.Broadcast(chat.Message{
+		Type:   "unread_update",
+		UserID: userID,
+	})
 
 	w.WriteHeader(http.StatusOK)
 }

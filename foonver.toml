@@ -1,0 +1,3 @@
+push = true
+changelog = true
+version-sync = ["frontend/package.json"]
