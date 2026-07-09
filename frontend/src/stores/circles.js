@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import axios from "axios";
+import axios from "../api";
 import { useAuthStore } from "./auth";
 import { showBrowserNotification } from "../utils/notifications";
 

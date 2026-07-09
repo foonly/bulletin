@@ -49,6 +49,9 @@ func main() {
 			return true // Prevent the application from closing
 		},
 		Menu: trayMenu,
+		Debug: options.Debug{
+			OpenInspectorOnStartup: true,
+		},
 	})
 
 	if err != nil {

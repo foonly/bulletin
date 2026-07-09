@@ -17,13 +17,13 @@ export const useSocketStore = defineStore("socket", {
 			const auth = useAuthStore();
 			if (!auth.user) return;
 
-			const isDesktop = !!window.runtime;
-			const protocol = isDesktop
+			const isWails = !!window.runtime || window.location.port === "34115";
+			const protocol = isWails
 				? "wss:"
 				: window.location.protocol === "https:"
 					? "wss:"
 					: "ws:";
-			const host = isDesktop ? "uplink.fi" : window.location.host;
+			const host = isWails ? "uplink.fi" : window.location.host;
 			const wsUrl = `${protocol}//${host}/api/chat/ws`;
 
 			this.socket = new WebSocket(wsUrl);

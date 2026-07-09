@@ -1,14 +1,17 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
-import axios from "axios";
 import App from "./App.vue";
 import router from "./router";
 import "./styles/index.css";
 
 // Configure axios for Wails desktop mode
-if (window.runtime) {
-	axios.defaults.baseURL = "https://uplink.fi";
-	axios.defaults.withCredentials = true;
+const isWails =
+	!!window.runtime ||
+	window.location.port === "34115" ||
+	window.location.port === "5173";
+if (isWails) {
+	// We don't set baseURL here anymore because the proxy in api.js handles it,
+	// but we should still ensure the stores use the right api instance.
 }
 
 const app = createApp(App);

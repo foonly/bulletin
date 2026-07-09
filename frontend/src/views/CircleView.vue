@@ -211,7 +211,7 @@ import { useCircleStore } from "../stores/circles";
 import { useAuthStore } from "../stores/auth";
 import { useUIStore } from "../stores/ui";
 import { useToastStore } from "../stores/toast";
-import axios from "axios";
+import axios from "../api";
 import { useRouter, useRoute } from "vue-router";
 import { showBrowserNotification } from "../utils/notifications";
 import { useSocketStore } from "../stores/socket";

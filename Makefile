@@ -57,7 +57,7 @@ dev-frontend:
 	@echo "Starting frontend in dev mode..."
 	cd frontend && pnpm run dev
 
-dev-desktop:
+dev-desktop: build-frontend
 	@echo "--- Starting desktop in dev mode ---"
 	$(WAILS) dev $(WAILS_TAGS)
 
