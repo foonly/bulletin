@@ -2,17 +2,22 @@
 
 # Variables
 BINARY_NAME=bulletin-api
+GOPATH=$(shell go env GOPATH)
+WAILS=$(GOPATH)/bin/wails
+WAILS_TAGS=-tags webkit2_41
 
-.PHONY: help setup build build-backend build-frontend infra dev dev-backend dev-frontend down db-logs clean
+.PHONY: help setup build build-backend build-frontend build-desktop infra dev dev-backend dev-frontend dev-desktop down db-logs clean
 
 help:
 	@echo "Usage:"
 	@echo "  make setup            Install dependencies"
-	@echo "  make build            Build backend and frontend"
+	@echo "  make build            Build backend, frontend and desktop"
+	@echo "  make build-desktop    Build the Wails desktop client"
 	@echo "  make infra            Start infrastructure (Postgres, Redis, Mailhog)"
 	@echo "  make dev              Start infrastructure and then run dev commands"
 	@echo "  make dev-backend      Start backend with live-reload (Air)"
 	@echo "  make dev-frontend     Start frontend with HMR (Vite)"
+	@echo "  make dev-desktop      Start Wails in dev mode"
 	@echo "  make down             Stop infrastructure"
 	@echo "  make db-logs          Follow database logs"
 	@echo "  make clean            Remove build artifacts and dependencies"
@@ -24,7 +29,7 @@ setup:
 	@echo "Setting up frontend..."
 	cd frontend && pnpm install
 
-build: build-backend build-frontend
+build: build-backend build-frontend build-desktop
 
 build-backend:
 	@echo "--- Building backend ---"
@@ -34,6 +39,10 @@ build-backend:
 build-frontend:
 	@echo "--- Building frontend ---"
 	cd frontend && pnpm run build
+
+build-desktop:
+	@echo "--- Building desktop ---"
+	$(WAILS) build $(WAILS_TAGS)
 
 infra:
 	docker-compose up -d
@@ -47,6 +56,10 @@ dev-backend:
 dev-frontend:
 	@echo "Starting frontend in dev mode..."
 	cd frontend && pnpm run dev
+
+dev-desktop:
+	@echo "--- Starting desktop in dev mode ---"
+	$(WAILS) dev $(WAILS_TAGS)
 
 dev: infra
 	@echo "Starting dev environment..."

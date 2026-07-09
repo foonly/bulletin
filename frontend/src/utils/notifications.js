@@ -16,7 +16,11 @@ export function showBrowserNotification(title, options = {}) {
 		});
 
 		notification.onclick = () => {
-			window.focus();
+			if (window.runtime && window.go && window.go.main && window.go.main.App) {
+				window.go.main.App.ShowWindow();
+			} else {
+				window.focus();
+			}
 			notification.close();
 		};
 	}

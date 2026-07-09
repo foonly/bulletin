@@ -1,0 +1,21 @@
+{
+	"name": "bulletin",
+	"assetserver": {
+		"frontend:install": "pnpm install",
+		"frontend:build": "pnpm run build",
+		"frontend:dev:watcher": "pnpm run dev",
+		"frontend:dev:serverUrl": "http://localhost:5173"
+	},
+	"info": {
+		"productName": "Bulletin",
+		"productVersion": "1.0.0",
+		"copyright": "uplink.fi",
+		"comments": "Lightweight community platform"
+	},
+	"frontend:dir": "frontend",
+	"wailsjsdir": "frontend/src/wailsjs",
+	"author": {
+		"name": "Niklas",
+		"email": "niklas@uplink.fi"
+	}
+}
