@@ -158,7 +158,8 @@ func (h *Handler) createMfaPendingSession(w http.ResponseWriter, r *http.Request
 		Value:    token,
 		Expires:  expiresAt,
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
 		Path:     "/",
 	})
 
@@ -334,7 +335,8 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, userID u
 		Value:    token,
 		Expires:  expiresAt,
 		HttpOnly: true,
-		Secure:   false, // Set to true in production
+		Secure:   true, // Required for SameSite=None
+		SameSite: http.SameSiteNoneMode,
 		Path:     "/",
 	})
 
