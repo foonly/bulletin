@@ -84,7 +84,7 @@ func main() {
 
 	// Add CORS middleware
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"https://uplink.fi", "http://localhost:5173", "http://localhost:34115", "wails://bulletin"},
+		AllowedOrigins:   []string{"https://uplink.fi", "http://localhost:5173", "http://localhost:34115", "wails://bulletin", "wails://wails"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
