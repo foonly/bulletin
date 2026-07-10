@@ -164,12 +164,25 @@ func (h *Handler) createMfaPendingSession(w http.ResponseWriter, r *http.Request
 	})
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{"status": "mfa_required"})
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "mfa_required",
+		"token":  token,
+	})
 }
 
 func (h *Handler) VerifyLoginTOTP(w http.ResponseWriter, r *http.Request) {
+	var token string
 	cookie, err := r.Cookie("session_token")
-	if err != nil {
+	if err == nil {
+		token = cookie.Value
+	} else {
+		authHeader := r.Header.Get("Authorization")
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			token = authHeader[7:]
+		}
+	}
+
+	if token == "" {
 		http.Error(w, "Missing session", http.StatusUnauthorized)
 		return
 	}
@@ -185,7 +198,7 @@ func (h *Handler) VerifyLoginTOTP(w http.ResponseWriter, r *http.Request) {
 	var userID uuid.UUID
 	var expiresAt time.Time
 	var mfaPending bool
-	err = h.DB.QueryRow(r.Context(), "SELECT user_id, expires_at, mfa_pending FROM sessions WHERE token = $1", cookie.Value).Scan(&userID, &expiresAt, &mfaPending)
+	err = h.DB.QueryRow(r.Context(), "SELECT user_id, expires_at, mfa_pending FROM sessions WHERE token = $1", token).Scan(&userID, &expiresAt, &mfaPending)
 	if err != nil || !mfaPending || time.Now().After(expiresAt) {
 		http.Error(w, "Invalid or expired session", http.StatusUnauthorized)
 		return
@@ -205,7 +218,7 @@ func (h *Handler) VerifyLoginTOTP(w http.ResponseWriter, r *http.Request) {
 
 	// Upgrade session
 	newExpiresAt := time.Now().Add(24 * 7 * time.Hour)
-	_, err = h.DB.Exec(r.Context(), "UPDATE sessions SET mfa_pending = FALSE, expires_at = $1 WHERE token = $2", newExpiresAt, cookie.Value)
+	_, err = h.DB.Exec(r.Context(), "UPDATE sessions SET mfa_pending = FALSE, expires_at = $1 WHERE token = $2", newExpiresAt, token)
 	if err != nil {
 		http.Error(w, "Failed to update session", http.StatusInternalServerError)
 		return
@@ -213,15 +226,19 @@ func (h *Handler) VerifyLoginTOTP(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
-		Value:    cookie.Value,
+		Value:    token,
 		Expires:  newExpiresAt,
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
 		Path:     "/",
 	})
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "success",
+		"token":  token,
+	})
 }
 
 func (h *Handler) SetupTOTP(w http.ResponseWriter, r *http.Request) {
@@ -341,7 +358,10 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request, userID u
 	})
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "success",
+		"token":  token,
+	})
 }
 
 func generateToken() string {

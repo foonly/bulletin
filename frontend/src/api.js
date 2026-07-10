@@ -13,4 +13,21 @@ const api = axios.create({
 	withCredentials: true,
 });
 
+// Attach Authorization header if token exists in localStorage
+api.interceptors.request.use((config) => {
+	const token = localStorage.getItem("session_token");
+	if (token) {
+		config.headers.Authorization = `Bearer ${token}`;
+	}
+	return config;
+});
+
+// Save token to localStorage when received in login response
+api.interceptors.response.use((response) => {
+	if (response.data && response.data.token) {
+		localStorage.setItem("session_token", response.data.token);
+	}
+	return response;
+});
+
 export default api;

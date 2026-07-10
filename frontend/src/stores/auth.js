@@ -69,6 +69,7 @@ export const useAuthStore = defineStore("auth", {
 		async logout() {
 			await axios.post("/api/auth/logout");
 			this.user = null;
+			localStorage.removeItem("session_token");
 		},
 		async updateMe(userData) {
 			await axios.put("/api/auth/me", userData);

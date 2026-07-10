@@ -12,8 +12,19 @@ import (
 func SessionMiddleware(db *pgxpool.Pool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var token string
 			cookie, err := r.Cookie("session_token")
-			if err != nil {
+			if err == nil {
+				token = cookie.Value
+			} else {
+				// Fallback to Authorization header for desktop/cross-origin clients
+				authHeader := r.Header.Get("Authorization")
+				if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+					token = authHeader[7:]
+				}
+			}
+
+			if token == "" {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -21,7 +32,7 @@ func SessionMiddleware(db *pgxpool.Pool) func(http.Handler) http.Handler {
 			var userID uuid.UUID
 			var expiresAt time.Time
 			var mfaPending bool
-			err = db.QueryRow(r.Context(), "SELECT user_id, expires_at, mfa_pending FROM sessions WHERE token = $1", cookie.Value).Scan(&userID, &expiresAt, &mfaPending)
+			err = db.QueryRow(r.Context(), "SELECT user_id, expires_at, mfa_pending FROM sessions WHERE token = $1", token).Scan(&userID, &expiresAt, &mfaPending)
 			if err != nil {
 				next.ServeHTTP(w, r)
 				return
@@ -29,7 +40,7 @@ func SessionMiddleware(db *pgxpool.Pool) func(http.Handler) http.Handler {
 
 			if time.Now().After(expiresAt) || mfaPending {
 				if time.Now().After(expiresAt) {
-					_, _ = db.Exec(r.Context(), "DELETE FROM sessions WHERE token = $1", cookie.Value)
+					_, _ = db.Exec(r.Context(), "DELETE FROM sessions WHERE token = $1", token)
 				}
 				next.ServeHTTP(w, r)
 				return

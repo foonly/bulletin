@@ -24,7 +24,8 @@ export const useSocketStore = defineStore("socket", {
 					? "wss:"
 					: "ws:";
 			const host = isWails ? "uplink.fi" : window.location.host;
-			const wsUrl = `${protocol}//${host}/api/chat/ws`;
+			const token = localStorage.getItem("session_token");
+			const wsUrl = `${protocol}//${host}/api/chat/ws${token ? `?token=${token}` : ""}`;
 
 			this.socket = new WebSocket(wsUrl);
 

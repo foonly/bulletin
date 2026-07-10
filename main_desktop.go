@@ -52,8 +52,12 @@ func main() {
 		// in linux.Options often triggers the SNI (tray) integration automatically.
 		Menu: trayMenu,
 		Linux: &linux.Options{
-			Icon:        icon,
-			ProgramName: "bulletin",
+			Icon:             icon,
+			ProgramName:      "bulletin",
+			WebviewGpuPolicy: linux.WebviewGpuPolicyAlways,
+		},
+		Debug: options.Debug{
+			OpenInspectorOnStartup: true,
 		},
 	})
 

@@ -183,7 +183,27 @@ func (h *Hub) Run() {
 }
 
 func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("user_id").(uuid.UUID)
+	userIDVal := r.Context().Value("user_id")
+	if userIDVal == nil {
+		// If not in context, check query param (for desktop/cross-origin clients)
+		token := r.URL.Query().Get("token")
+		if token != "" {
+			var userID uuid.UUID
+			var expiresAt time.Time
+			var mfaPending bool
+			err := h.DB.QueryRow(r.Context(), "SELECT user_id, expires_at, mfa_pending FROM sessions WHERE token = $1", token).Scan(&userID, &expiresAt, &mfaPending)
+			if err == nil && !mfaPending && !time.Now().After(expiresAt) {
+				userIDVal = userID
+			}
+		}
+	}
+
+	if userIDVal == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID := userIDVal.(uuid.UUID)
 
 	log.Printf("User %s connecting to global WS\n", userID)
 
