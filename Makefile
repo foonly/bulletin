@@ -29,7 +29,7 @@ setup:
 	@echo "Setting up frontend..."
 	cd frontend && pnpm install
 
-build: build-backend build-frontend build-desktop
+build: build-backend build-frontend
 
 build-backend:
 	@echo "--- Building backend ---"
