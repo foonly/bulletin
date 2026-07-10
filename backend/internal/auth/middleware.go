@@ -17,10 +17,13 @@ func SessionMiddleware(db *pgxpool.Pool) func(http.Handler) http.Handler {
 			if err == nil {
 				token = cookie.Value
 			} else {
-				// Fallback to Authorization header for desktop/cross-origin clients
+				// Fallback 1: Authorization header
 				authHeader := r.Header.Get("Authorization")
 				if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
 					token = authHeader[7:]
+				} else {
+					// Fallback 2: Query parameter (for WebSockets/Assets)
+					token = r.URL.Query().Get("token")
 				}
 			}
 
