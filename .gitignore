@@ -1,3 +1,4 @@
 frontend/.env
 backend/tmp/
 backend/bin/
+build/bin/

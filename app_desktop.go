@@ -22,12 +22,6 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
-}
-
 // ShowWindow shows the main window
 func (a *App) ShowWindow() {
 	runtime.WindowShow(a.ctx)
